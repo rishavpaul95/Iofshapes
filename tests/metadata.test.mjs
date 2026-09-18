@@ -49,15 +49,76 @@ test("an unconfigured build never invents a production domain", async () => {
   );
 });
 
-test("deployment rejects an unsafe or unsupported origin", async () => {
+test("GitHub Pages subpaths prefix assets, gallery images and SEO metadata", async () => {
+  for (const suffix of ["", "/"]) {
+    const output = await buildWithDomain(
+      `https://rishavpaul95.github.io/Iofshapes${suffix}`,
+    );
+    const html = output.find((asset) => asset.fileName === "index.html").source;
+    const css = output
+      .filter((asset) => asset.fileName.endsWith(".css"))
+      .map((asset) => asset.source)
+      .join("\n");
+    const script = output
+      .filter((asset) => asset.type === "chunk")
+      .map((asset) => asset.code)
+      .join("\n");
+    const robots = output.find(
+      (asset) => asset.fileName === "robots.txt",
+    ).source;
+    const sitemap = output.find(
+      (asset) => asset.fileName === "sitemap.xml",
+    ).source;
+    assert.match(
+      html,
+      /rel="canonical" href="https:\/\/rishavpaul95\.github\.io\/Iofshapes\/"/,
+    );
+    assert.match(
+      html,
+      /property="og:url" content="https:\/\/rishavpaul95\.github\.io\/Iofshapes\/"/,
+    );
+    assert.match(
+      html,
+      /property="og:image" content="https:\/\/rishavpaul95\.github\.io\/Iofshapes\/images\/CanvasArt\.jpg"/,
+    );
+    assert.match(html, /src="\/Iofshapes\/images\/CanvasArt-720\.webp"/);
+    assert.match(html, /href="\/Iofshapes\/favicon\.svg/);
+    assert.match(html, /src="\/Iofshapes\/assets\//);
+    assert.match(css, /\/Iofshapes\/images\/drawing-hand\.svg/);
+    for (const filename of [
+      "CanvasArt.jpg",
+      "mehendi-leaves.jpg",
+      "mehendi-leaves-detail.jpg",
+    ]) {
+      assert.ok(script.includes(`/Iofshapes/images/${filename}`));
+    }
+    assert.doesNotMatch(
+      html,
+      /(?:src|href)="\/(?:images|assets|favicon|apple-touch-icon)/,
+    );
+    assert.doesNotMatch(css, /url\(["']?\/images\//);
+    assert.match(
+      robots,
+      /Sitemap: https:\/\/rishavpaul95\.github\.io\/Iofshapes\/sitemap.xml/,
+    );
+    assert.match(
+      sitemap,
+      /<loc>https:\/\/rishavpaul95\.github\.io\/Iofshapes\/<\/loc>/,
+    );
+  }
+});
+
+test("deployment rejects unsafe URLs", async () => {
   for (const siteUrl of [
     "http://iofshapes.example",
-    "https://iofshapes.example/subpath",
     "https://user:password@iofshapes.example",
+    "https://iofshapes.example/?query=value",
+    "https://iofshapes.example/#fragment",
+    "https://iofshapes.example/unsafe&path/",
   ]) {
     await assert.rejects(
       buildWithDomain(siteUrl),
-      /SITE_URL must be an HTTPS origin/,
+      /SITE_URL must be an HTTPS URL/,
     );
   }
 });

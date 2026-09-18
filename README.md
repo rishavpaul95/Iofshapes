@@ -50,11 +50,27 @@ The folio presents all three original images once each in a compact three-column
 
 ## Publish
 
-1. Set `SITE_URL` to the final HTTPS origin, with no subpath, in the hosting build environment or a local `.env` file. `.env.example` documents the key. No domain is invented by default.
-2. Run `npm run build` and deploy `dist` to a static host at the root of the domain.
+### GitHub Pages: rishavpaul95/Iofshapes
+
+The workflow in `.github/workflows/deploy.yml` deploys to **https://rishavpaul95.github.io/Iofshapes/**. It sets `SITE_URL`, generates images, checks deployment paths and SEO metadata, builds with Node.js 24, and publishes `dist`. No deployment token or secret is required.
+
+1. Upload the project contents into the repository root, preserving the `src`, `public`, `scripts`, `tests` and `.github/workflows` folders. Include `package.json`, `package-lock.json`, `tsconfig.json` and `vite.config.ts`. Do not upload `node_modules`, `dist`, `test-results`, `playwright-report`, `.git` or private `.env` files; browser uploads do not apply your local `.gitignore` automatically.
+2. Under **Settings > Pages > Build and deployment**, choose **GitHub Actions**. A repository administrator may need to enable this.
+3. Upload the workflow last, or create it with **Add file > Create new file** using the path `.github/workflows/deploy.yml`. Commit to `main`. If the default branch has another name, update the workflow's branch filter.
+4. Open **Actions > Deploy Iofshapes to GitHub Pages** and check the run. The workflow also supports **Run workflow**. Future browser uploads committed to `main` deploy automatically.
+5. Open the URL above after deployment succeeds. Check the gallery viewer, cursor, favicon and images. The deployment has only been tested locally until a GitHub Actions run succeeds.
+
+Browser uploads still require repository write access even though command-line Git is unnecessary. Do not upload only the workflow: the subpath support in `vite.config.ts` and `src/main.ts`, and the matching `tests/metadata.test.mjs`, are also required.
+
+### Other hosts or a custom domain
+
+1. Set `SITE_URL` to the final HTTPS site URL, optionally including a deployment path, in the hosting build environment or a local `.env` file. `.env.example` documents the key. Credentials, query strings, fragments and non-plain paths are rejected. No domain is invented by default.
+2. Run `npm run build` and deploy `dist` at that URL. The Vite base path is derived from `SITE_URL`, so HTML/CSS assets and gallery images use the same deployment path. With no `SITE_URL`, the site builds for `/`. For a custom domain on Pages, also change the workflow's `SITE_URL` and configure the domain in GitHub Pages settings.
 3. When `SITE_URL` is set, the build adds the canonical URL, absolute Open Graph image URL, `og:url` and a sitemap. `robots.txt` is always generated.
 4. Check the live Instagram link on iOS and Android. Instagram may ask visitors to sign in; enquiry buttons deliberately use the supplied public profile rather than an unreliable direct-message deep link.
 5. Confirm service coverage and copy with Haimanti, review social previews, and submit the sitemap to Search Console.
+
+On project Pages, `robots.txt` is published under `/Iofshapes/`, not the domain root where crawlers look for it. Submit `https://rishavpaul95.github.io/Iofshapes/sitemap.xml` directly to Search Console; controlling the root `robots.txt` requires the account site or a custom domain.
 
 All text and JSON-LD are in the initial HTML for crawlers. Fonts are locally hosted. The opening uses one locally hosted SVG hand asset for its cursor and tap cue, with a PNG cursor fallback and no video or large hero image; original artwork below it uses responsive, lazy-loaded WebP images. Full-resolution images are loaded into the viewer only when opened. The animation does not own or gate any SEO content.
 

@@ -4,6 +4,7 @@ export default defineConfig(({ mode }) => {
   const environment = loadEnv(mode, process.cwd(), "SITE_");
   const configuredUrl = process.env.SITE_URL || environment.SITE_URL;
   let siteUrl = "";
+  let base = "/";
 
   if (configuredUrl) {
     const parsedUrl = new URL(configuredUrl);
@@ -11,18 +12,21 @@ export default defineConfig(({ mode }) => {
       parsedUrl.protocol !== "https:" ||
       parsedUrl.username ||
       parsedUrl.password ||
-      parsedUrl.pathname !== "/" ||
+      !/^(?:\/[A-Za-z0-9._~-]+)*\/?$/.test(parsedUrl.pathname) ||
       parsedUrl.search ||
       parsedUrl.hash
     ) {
       throw new Error(
-        "SITE_URL must be an HTTPS origin without a path, credentials, query or fragment.",
+        "SITE_URL must be an HTTPS URL with a plain deployment path and no credentials, query or fragment.",
       );
     }
-    siteUrl = parsedUrl.origin + "/";
+    parsedUrl.pathname = parsedUrl.pathname.replace(/\/?$/, "/");
+    siteUrl = parsedUrl.href;
+    base = parsedUrl.pathname;
   }
 
   return {
+    base,
     plugins: [
       {
         name: "iofshapes-search-metadata",
