@@ -1,0 +1,28 @@
+{
+  "name": "iofshapes",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "playwright test",
+    "test:metadata": "node --test tests/metadata.test.mjs",
+    "images": "node scripts/optimize-images.mjs",
+    "format": "prettier --write index.html src scripts tests *.json *.ts README.md"
+  },
+  "dependencies": {
+    "@fontsource/dm-sans": "^5.2.8",
+    "@fontsource/instrument-serif": "^5.2.8",
+    "lucide": "^0.468.0"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.10.2",
+    "@playwright/test": "^1.55.0",
+    "prettier": "^3.9.8",
+    "sharp": "^0.35.4",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.7"
+  }
+}
