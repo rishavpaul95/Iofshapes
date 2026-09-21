@@ -21,7 +21,7 @@ test("brand, original artwork and Instagram-only enquiries", async ({
   for (const link of await enquiryLinks.all()) {
     await expect(link).toHaveAttribute(
       "href",
-      "https://www.instagram.com/____tiny_apocalypse/",
+      "https://www.instagram.com/iofshapes/",
     );
     await expect(link).toHaveAttribute("rel", "noopener noreferrer");
   }
@@ -364,7 +364,7 @@ test("text, artwork and Instagram enquiries exist without JavaScript", async ({
   await expect(page.locator("main img")).toHaveCount(3);
   await expect(
     page.getByRole("link", { name: "Book mehendi", exact: false }),
-  ).toHaveAttribute("href", "https://www.instagram.com/____tiny_apocalypse/");
+  ).toHaveAttribute("href", "https://www.instagram.com/iofshapes/");
   const schema = JSON.parse(
     (await page.locator('script[type="application/ld+json"]').textContent()) ||
       "{}",

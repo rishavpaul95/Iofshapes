@@ -91,21 +91,21 @@ const artworks = [
     description: "Original canvas painting by Haimanti Paul Nayak",
     image: `${import.meta.env.BASE_URL}images/CanvasArt.jpg`,
     alt: "Full canvas painting of two geometric faces with mustard floral bands, blue shapes and pink details.",
-    source: "https://www.instagram.com/____tiny_apocalypse/",
+    source: "https://www.instagram.com/iofshapes/",
   },
   {
     title: "Leaves, in another form",
     description: "Botanical mehendi by Haimanti Paul Nayak",
     image: `${import.meta.env.BASE_URL}images/mehendi-leaves.jpg`,
     alt: "Bold leafy mehendi patterns across a palm with darkly stained fingertips.",
-    source: "https://www.instagram.com/____tiny_apocalypse/p/CqBDcViJmKV/",
+    source: "https://www.instagram.com/iofshapes/p/CqBDcViJmKV/",
   },
   {
     title: "A little closer to nature",
     description: "A detail from the botanical mehendi series",
     image: `${import.meta.env.BASE_URL}images/mehendi-leaves-detail.jpg`,
     alt: "A hand decorated with botanical mehendi beside white flowers in a terracotta pot.",
-    source: "https://www.instagram.com/____tiny_apocalypse/p/CqBDcViJmKV/",
+    source: "https://www.instagram.com/iofshapes/p/CqBDcViJmKV/",
   },
 ];
 const dialog = document.querySelector<HTMLDialogElement>(".art-dialog")!;

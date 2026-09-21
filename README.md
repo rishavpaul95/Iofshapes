@@ -39,7 +39,7 @@ The folio presents all three original images once each in a compact three-column
 ## Artwork
 
 - `public/images/CanvasArt.jpg`: original painting supplied by the user.
-- `public/images/mehendi-leaves.jpg` and `mehendi-leaves-detail.jpg`: original images retrieved from the public carousel at https://www.instagram.com/____tiny_apocalypse/p/CqBDcViJmKV/ at the user's request.
+- `public/images/mehendi-leaves.jpg` and `mehendi-leaves-detail.jpg`: original images retrieved from the public carousel at https://www.instagram.com/iofshapes/p/CqBDcViJmKV/ at the user's request.
 - Captions are descriptive editorial labels, not asserted official artwork titles.
 - No stock portfolio artwork, fabricated artist photographs or invented client testimonials are used. The drawing-hand cursor is an interface motif only.
 - `scripts/drawing-hand.jpg`: supplied hand illustration, retained unchanged. `npm run images` removes the neutral checkerboard using its colour difference from the warm hand, cleans edge contamination, and generates a self-contained `public/images/drawing-hand.svg`. This SVG embeds a transparent 224px PNG; it is not a vector trace. The SVG displays at 112x76, with a PNG cursor fallback and hotspot at (3, 3). If the source image changes, review the matte and hotspot again.
