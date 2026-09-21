@@ -1,5 +1,7 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import { readFile } from "node:fs/promises";
+import { prepareZXingModule, readBarcodes } from "zxing-wasm/reader";
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
@@ -36,7 +38,7 @@ test("brand, original artwork and Instagram-only enquiries", async ({
   }
 });
 
-test("artwork index selects each original in the inspection table", async ({
+test("artwork index selects each original in the living gallery", async ({
   page,
 }) => {
   await expect(page.locator(".folio-grid img")).toHaveCount(3);
@@ -76,65 +78,255 @@ test("artwork index selects each original in the inspection table", async ({
   );
 });
 
-test("artwork detail supports zoom, keyboard, drag and reset", async ({
+test("artwork pigment responds to touch, keyboard and flow without altering originals", async ({
+  page,
+  isMobile,
+}, testInfo) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.reload();
+  const viewport = page.getByRole("group", { name: "Living artwork" });
+  const canvas = page.locator(".pigment-canvas");
+  await viewport.scrollIntoViewIfNeeded();
+  await expect(viewport).toHaveAttribute("data-loaded", "true");
+  await expect(canvas).toHaveCSS("opacity", "1");
+  const pixels = () => canvas.evaluate((element) => element.toDataURL());
+  const original = await pixels();
+  expect(
+    await canvas.evaluate((element) => {
+      const bytes = element
+        .getContext("2d")!
+        .getImageData(0, 0, element.width, element.height).data;
+      let colored = 0;
+      for (let offset = 3; offset < bytes.length; offset += 4)
+        if (bytes[offset]) colored++;
+      return colored / (element.width * element.height);
+    }),
+  ).toBeGreaterThan(0.0002);
+  await page.getByRole("slider", { name: "Flow" }).fill("80");
+  await expect(page.locator("#study-amount")).toHaveText("80%");
+  expect(await pixels()).not.toBe(original);
+  const beforeGesture = await pixels();
+  if (isMobile) await viewport.tap({ position: { x: 85, y: 160 } });
+  else await viewport.click({ position: { x: 85, y: 160 } });
+  expect(await pixels()).not.toBe(beforeGesture);
+  await viewport.focus();
+  const beforeKeyboard = await pixels();
+  await page.keyboard.press("ArrowDown");
+  expect(await pixels()).not.toBe(beforeKeyboard);
+  await viewport.screenshot({
+    path: testInfo.outputPath("living-pigment.png"),
+    scale: "css",
+  });
+  await page.getByRole("button", { name: "Reset artwork view" }).click();
+  await expect(viewport).toHaveAttribute("data-mode", "original");
+  await expect(page.locator(".study-image")).toHaveCSS("opacity", "1");
+  await expect(page.getByRole("slider", { name: "Flow" })).toBeDisabled();
+  await page.getByRole("button", { name: "Stir pigment" }).click();
+  await expect(viewport).toHaveAttribute("data-mode", "pigment");
+  await viewport.focus();
+  await page.keyboard.press("Escape");
+  await expect(viewport).toHaveAttribute("data-mode", "original");
+});
+
+test("artwork touch gestures separate taps, swipes and native scrolling", async ({
   page,
   isMobile,
 }) => {
-  const viewport = page.getByRole("group", { name: "Artwork inspection area" });
-  const image = page.locator(".study-image");
-  await page.getByRole("button", { name: "Detail", exact: true }).click();
-  await expect(viewport).toHaveAttribute("data-detail", "true");
-  await expect(page.locator("#study-scale")).toHaveText("2.5x");
-  await expect(image).toHaveCSS("transform", "matrix(2.5, 0, 0, 2.5, 0, 0)");
-  await viewport.focus();
-  const originalPosition = await image.evaluate(
-    (element) => element.style.transform,
-  );
-  await page.keyboard.press("ArrowDown");
-  expect(await image.evaluate((element) => element.style.transform)).not.toBe(
-    originalPosition,
-  );
-  const beforeDrag = await image.evaluate((element) => element.style.transform);
-  const bounds = (await viewport.boundingBox())!;
-  const start = {
-    x: bounds.x + bounds.width * 0.55,
-    y: bounds.y + bounds.height * 0.5,
-  };
-  if (isMobile) {
-    const session = await page.context().newCDPSession(page);
+  test.skip(!isMobile, "Touch-only interactions");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.reload();
+  const viewport = page.locator(".study-viewport");
+  const canvas = page.locator(".pigment-canvas");
+  const session = await page.context().newCDPSession(page);
+  async function swipe(selector: string, horizontal: number, vertical: number) {
+    const surface = page.locator(selector);
+    await surface.scrollIntoViewIfNeeded();
+    const bounds = (await surface.boundingBox())!;
+    const start = {
+      x: bounds.x + bounds.width / 2,
+      y: bounds.y + bounds.height / 2,
+    };
+    const steps = 8;
+    let timestamp = Date.now() / 1000;
     await session.send("Input.dispatchTouchEvent", {
       type: "touchStart",
-      touchPoints: [start],
+      touchPoints: [{ ...start, id: 1 }],
+      timestamp,
     });
-    await session.send("Input.dispatchTouchEvent", {
-      type: "touchMove",
-      touchPoints: [{ x: start.x - 45, y: start.y - 30 }],
-    });
+    for (let step = 1; step <= steps; step++) {
+      timestamp += 0.016;
+      await session.send("Input.dispatchTouchEvent", {
+        type: "touchMove",
+        touchPoints: [
+          {
+            x: start.x + (horizontal * step) / steps,
+            y: start.y + (vertical * step) / steps,
+            id: 1,
+          },
+        ],
+        timestamp,
+      });
+    }
+    // A still finger before release ends the gesture without a fling that would swallow the next tap.
+    for (let hold = 0; hold < 3; hold++) {
+      timestamp += 0.05;
+      await session.send("Input.dispatchTouchEvent", {
+        type: "touchMove",
+        touchPoints: [
+          { x: start.x + horizontal, y: start.y + vertical, id: 1 },
+        ],
+        timestamp,
+      });
+    }
+    timestamp += 0.05;
     await session.send("Input.dispatchTouchEvent", {
       type: "touchEnd",
       touchPoints: [],
+      timestamp,
     });
-    await session.detach();
-  } else {
-    await page.mouse.move(start.x, start.y);
-    await page.mouse.down();
-    await page.mouse.move(start.x - 45, start.y - 30, { steps: 4 });
-    await page.mouse.up();
   }
-  expect(await image.evaluate((element) => element.style.transform)).not.toBe(
-    beforeDrag,
+  await viewport.scrollIntoViewIfNeeded();
+  await viewport.tap({ position: { x: 90, y: 160 } });
+  await expect(canvas).toHaveAttribute("data-gesture", "1.00");
+  await expect(viewport).toHaveCSS(
+    "-webkit-tap-highlight-color",
+    "rgba(0, 0, 0, 0)",
   );
-  await page.getByRole("slider", { name: "Magnification" }).fill("3.2");
-  await expect(page.locator("#study-scale")).toHaveText("3.2x");
-  await page.getByRole("button", { name: "Reset artwork view" }).click();
-  await expect(viewport).toHaveAttribute("data-detail", "false");
-  await expect(image).toHaveCSS("transform", "matrix(1, 0, 0, 1, 0, 0)");
-  await page.getByRole("button", { name: "Detail", exact: true }).click();
-  await page.locator('[data-artwork="1"]').click();
-  await expect(page.locator("#study-scale")).toHaveText("1.0x");
-  await expect(
-    page.getByRole("button", { name: "Whole work" }),
-  ).toHaveAttribute("aria-pressed", "true");
+  await expect(viewport).toHaveCSS("outline-style", "none");
+  await expect(viewport).toHaveCSS("cursor", "auto");
+  await swipe(".study-viewport", -110, 0);
+  await expect(page.locator("#study-title")).toHaveText(
+    "Leaves, in another form",
+  );
+  await expect(viewport).toHaveAttribute("data-loaded", "true");
+  await expect(canvas).toHaveAttribute("data-gesture", "0.00");
+  await swipe(".study-viewport", 110, 0);
+  await expect(page.locator("#study-title")).toHaveText("Geometric faces");
+  await expect(viewport).toHaveAttribute("data-loaded", "true");
+  await page.getByRole("button", { name: "Open artwork viewer" }).tap();
+  await expect(page.locator(".art-dialog")).toBeVisible();
+  await swipe("#dialog-image", -110, 0);
+  await expect(page.locator("#art-dialog-title")).toHaveText(
+    "Leaves, in another form",
+  );
+  await swipe("#dialog-image", 110, 0);
+  await expect(page.locator("#art-dialog-title")).toHaveText("Geometric faces");
+  await page.locator(".close-dialog").tap();
+  await viewport.scrollIntoViewIfNeeded();
+  const scrollBefore = await page.evaluate(() => scrollY);
+  await swipe(".study-viewport", 0, -150);
+  await expect
+    .poll(() => page.evaluate(() => scrollY))
+    .toBeGreaterThan(scrollBefore + 30);
+  await expect(page.locator("#study-title")).toHaveText("Geometric faces");
+  await expect(canvas).toHaveAttribute("data-gesture", "0.00");
+  await session.detach();
+});
+
+test("artwork stays pixel-identical at maximum pigment flow", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  for (let index = 0; index < 3; index++) {
+    await page.locator(`[data-artwork="${index}"]`).click();
+    const viewport = page.locator(".study-viewport");
+    await viewport.scrollIntoViewIfNeeded();
+    await expect(viewport).toHaveAttribute("data-loaded", "true");
+    await page.getByRole("button", { name: "Original", exact: true }).click();
+    const image = page.locator(".study-image");
+    const clip = await image.evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      const scale = Math.min(
+        bounds.width / element.naturalWidth,
+        bounds.height / element.naturalHeight,
+      );
+      const width = element.naturalWidth * scale;
+      const height = element.naturalHeight * scale;
+      return {
+        x: bounds.x + scrollX + (bounds.width - width) / 2 + 1,
+        y: bounds.y + scrollY + (bounds.height - height) / 2 + 1,
+        width: width - 2,
+        height: height - 2,
+      };
+    });
+    const original = await page.screenshot({
+      clip,
+      fullPage: true,
+      scale: "css",
+    });
+    await page
+      .getByRole("button", { name: "Colour echoes" })
+      .dispatchEvent("click");
+    await page
+      .getByRole("slider", { name: "Flow" })
+      .evaluate((element: HTMLInputElement) => {
+        element.value = "100";
+        element.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+    await expect(page.locator(".pigment-canvas")).toHaveCSS("opacity", "1");
+    await expect(image).toHaveCSS("opacity", "1");
+    await expect(image).toHaveCSS("filter", "none");
+    expect(
+      (await page.screenshot({ clip, fullPage: true, scale: "css" })).equals(
+        original,
+      ),
+      `Artwork ${index + 1} must remain pixel-identical`,
+    ).toBe(true);
+  }
+});
+
+test("artwork pigment animation settles and suspends offscreen", async ({
+  page,
+}) => {
+  const canvas = page.locator(".pigment-canvas");
+  await page.getByRole("button", { name: "Stir pigment" }).click();
+  await expect(canvas).toHaveAttribute("data-gesture", "0.00", {
+    timeout: 5000,
+  });
+  const settled = await canvas.getAttribute("data-frame");
+  await page.evaluate(async () => {
+    for (let frame = 0; frame < 12; frame++)
+      await new Promise(requestAnimationFrame);
+  });
+  await expect(canvas).toHaveAttribute("data-frame", settled!);
+  await page.getByRole("button", { name: "Stir pigment" }).click();
+  await page.locator("footer").scrollIntoViewIfNeeded();
+  await page.evaluate(async () => {
+    for (let frame = 0; frame < 12; frame++)
+      await new Promise(requestAnimationFrame);
+  });
+  const offscreen = await canvas.getAttribute("data-frame");
+  await page.evaluate(async () => {
+    for (let frame = 0; frame < 12; frame++)
+      await new Promise(requestAnimationFrame);
+  });
+  await expect(canvas).toHaveAttribute("data-frame", offscreen!);
+});
+
+test("glass Instagram QR remains scannable as rendered", async ({
+  page,
+}, testInfo) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const qr = page.locator(".instagram-qr");
+  await qr.scrollIntoViewIfNeeded();
+  await expect(qr.locator("img")).toHaveJSProperty("naturalWidth", 660);
+  prepareZXingModule({
+    overrides: {
+      wasmBinary: new Uint8Array(
+        await readFile("node_modules/zxing-wasm/dist/reader/zxing_reader.wasm"),
+      ).buffer,
+    },
+  });
+  const codes = await readBarcodes(
+    await qr.screenshot({
+      path: testInfo.outputPath("glass-qr.png"),
+      scale: "css",
+    }),
+    { formats: ["QRCode"], tryHarder: true },
+  );
+  expect(codes).toHaveLength(1);
+  expect(new URL(codes[0].text).pathname.replace(/\/$/, "")).toBe("/iofshapes");
+  await expect(qr).toHaveCSS("backdrop-filter", /blur/);
 });
 
 test("embroidery metadata and Instagram follow QR remain discoverable", async ({
@@ -199,7 +391,10 @@ test("drawing hand gives a nonverbal cue and retires after interaction", async (
   await page.reload();
   await page.mouse.move(0, 0);
   await expect(cue).toBeVisible();
-  await expect(canvas).toHaveCSS("cursor", /drawing-hand\.svg.*3 3/);
+  await expect(canvas).toHaveCSS(
+    "cursor",
+    isMobile ? "auto" : /drawing-hand\.svg.*3 3/,
+  );
   await expect(page.locator(".cue-hand")).toHaveCSS(
     "background-image",
     /drawing-hand\.svg/,
@@ -712,16 +907,11 @@ test("responsive artwork, layout and screenshots", async ({
         };
       }),
     );
-    if (width <= 760) {
-      expect(work[1].left).toBeGreaterThan(work[0].right);
-      expect(work[2].left).toBeGreaterThan(work[1].right);
-      expect(Math.abs(work[0].top - work[2].top)).toBeLessThan(2);
-    } else {
-      expect(work[1].top).toBeGreaterThan(work[0].bottom);
-      expect(work[2].top).toBeGreaterThan(work[1].bottom);
-      const study = (await page.locator(".art-study").boundingBox())!;
-      expect(work[0].left).toBeGreaterThan(study.x + study.width);
-    }
+    expect(work[1].left).toBeGreaterThan(work[0].right);
+    expect(work[2].left).toBeGreaterThan(work[1].right);
+    expect(Math.abs(work[0].top - work[2].top)).toBeLessThan(2);
+    const study = (await page.locator(".art-study").boundingBox())!;
+    expect(work[0].top).toBeGreaterThan(study.y + study.height);
     await page.screenshot({
       path: testInfo.outputPath(`viewport-${width}.png`),
       fullPage: true,

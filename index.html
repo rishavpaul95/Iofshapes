@@ -206,7 +206,7 @@
       <section id="work" class="folio" aria-labelledby="work-title">
         <p class="eyebrow">02 / THE ART STUDIES</p>
         <div class="folio-heading">
-          <h2 id="work-title">A world within<br /><em>every line.</em></h2>
+          <h2 id="work-title">Colour,<br /><em>uncontained.</em></h2>
           <p>
             Pigment. Henna. Thread.<br />
             Painting, mehendi and hand embroidery.<br />
@@ -219,17 +219,17 @@
               <div class="study-modes" role="group" aria-label="Artwork view">
                 <button
                   type="button"
-                  data-study-mode="whole"
+                  data-study-mode="original"
                   aria-pressed="true"
                 >
-                  Whole work
+                  Original
                 </button>
                 <button
                   type="button"
-                  data-study-mode="detail"
+                  data-study-mode="pigment"
                   aria-pressed="false"
                 >
-                  Detail
+                  Colour echoes
                 </button>
               </div>
               <span class="study-index" aria-label="Artwork position"
@@ -248,7 +248,7 @@
               class="study-viewport"
               tabindex="0"
               role="group"
-              aria-label="Artwork inspection area"
+              aria-label="Living artwork"
               aria-describedby="study-keyboard"
             >
               <img
@@ -260,23 +260,35 @@
                 draggable="false"
                 alt="Geometric faces, original painting by Haimanti Paul Nayak"
               />
-              <span class="study-reticle" aria-hidden="true"></span>
+              <canvas class="pigment-canvas" aria-hidden="true"></canvas>
+              <span class="study-material" aria-hidden="true"
+                >Pigment / canvas</span
+              >
             </div>
             <span id="study-keyboard" class="sr-only"
-              >In detail view, drag or use the arrow keys to move around the
-              artwork. Home restores the whole work.</span
+              >In Colour echoes mode, touch or move to shape the surrounding
+              colour strokes. The artwork remains unchanged. Arrow keys move the
+              gesture; Enter creates a pulse. Escape hides the echoes.</span
             >
             <div class="study-controls">
-              <label for="study-zoom">Magnification</label>
+              <label for="study-release">Flow</label>
               <input
-                id="study-zoom"
+                id="study-release"
                 type="range"
-                min="1"
-                max="4"
-                step="0.1"
-                value="1"
+                min="0"
+                max="100"
+                step="1"
+                value="35"
               />
-              <output id="study-scale" for="study-zoom">1.0x</output>
+              <output id="study-amount" for="study-release">35%</output>
+              <button
+                id="study-stir"
+                class="icon-button"
+                aria-label="Stir pigment"
+                data-tooltip="Stir pigment"
+              >
+                <i data-lucide="pen-line" aria-hidden="true"></i>
+              </button>
               <button
                 id="study-reset"
                 class="icon-button"

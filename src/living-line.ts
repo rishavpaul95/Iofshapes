@@ -1,3 +1,5 @@
+import { mountTouchGestures } from "./touch-gestures.ts";
+
 type Mark = { x: number; y: number; born: number };
 
 export function mountLivingLine(canvas: HTMLCanvasElement) {
@@ -384,13 +386,15 @@ export function mountLivingLine(canvas: HTMLCanvasElement) {
   add.addEventListener("click", () =>
     addMark(0.22 + (marks.length % 4) * 0.13, 0.32 + (marks.length % 3) * 0.13),
   );
-  canvas.addEventListener("click", (event) => {
+  function markAt(event: MouseEvent) {
     const bounds = canvas.getBoundingClientRect();
     addMark(
       (event.clientX - bounds.left) / width,
       (event.clientY - bounds.top) / height,
     );
-  });
+  }
+  mountTouchGestures(canvas, { onTap: markAt });
+  canvas.addEventListener("click", markAt);
   canvas.addEventListener("pointerenter", (event) => {
     if (event.pointerType === "mouse") canvas.dataset.hovered = "true";
   });

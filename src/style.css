@@ -28,7 +28,21 @@ button,
 a,
 summary {
   touch-action: manipulation;
+}
+button,
+a,
+summary,
+input,
+canvas,
+.study-viewport,
+#dialog-image {
   -webkit-tap-highlight-color: transparent;
+}
+canvas,
+.study-viewport,
+#dialog-image {
+  -webkit-user-select: none;
+  user-select: none;
 }
 button {
   font: inherit;
@@ -160,8 +174,13 @@ canvas:focus-visible {
   padding: 0;
   position: relative;
 }
-.icon-button:hover {
-  background: #292d2910;
+@media (hover: hover) and (pointer: fine) {
+  .icon-button:hover {
+    background: #292d2910;
+  }
+  .icon-button[data-tooltip]:hover::after {
+    opacity: 1;
+  }
 }
 .icon-button[data-tooltip]::after {
   content: attr(data-tooltip);
@@ -177,7 +196,6 @@ canvas:focus-visible {
   pointer-events: none;
   transition: opacity 0.15s;
 }
-.icon-button[data-tooltip]:hover::after,
 .icon-button[data-tooltip]:focus-visible::after {
   opacity: 1;
 }
@@ -234,12 +252,16 @@ canvas:focus-visible {
   z-index: -1;
   width: 100%;
   height: 100%;
-  touch-action: pan-y;
-  cursor:
-    url("/images/drawing-hand.svg?v=soft-wrist") 3 3,
-    url("/images/drawing-hand.png?v=soft-wrist") 3 3,
-    pointer;
+  touch-action: pan-y pinch-zoom;
   outline-offset: -6px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .hero > canvas {
+    cursor:
+      url("/images/drawing-hand.svg?v=soft-wrist") 3 3,
+      url("/images/drawing-hand.png?v=soft-wrist") 3 3,
+      pointer;
+  }
 }
 .drawing-cue {
   position: absolute;
@@ -716,13 +738,17 @@ canvas[data-paused="true"] + .drawing-cue > span {
 }
 .study-ready .study-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 220px;
-  gap: 36px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 32px;
   margin-top: 36px;
   align-items: start;
 }
 .art-study {
   min-width: 0;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 440px);
+  column-gap: 24px;
 }
 .art-study[hidden] {
   display: none;
@@ -733,10 +759,12 @@ canvas[data-paused="true"] + .drawing-cue > span {
   align-items: center;
   gap: 16px;
   min-height: 64px;
-  border-top: 1px solid var(--line);
+  border-top: 0;
 }
 .study-toolbar {
   justify-content: space-between;
+  border-bottom: 1px solid var(--line);
+  grid-column: 1 / -1;
 }
 .study-modes {
   display: flex;
@@ -761,59 +789,62 @@ canvas[data-paused="true"] + .drawing-cue > span {
 .study-viewport {
   position: relative;
   overflow: hidden;
-  height: clamp(340px, 55svh, 650px);
-  background-color: #e7ebe8;
-  background-image:
-    linear-gradient(#49594d12 1px, transparent 1px),
-    linear-gradient(90deg, #49594d12 1px, transparent 1px);
-  background-size: 32px 32px;
+  height: clamp(480px, 68svh, 760px);
+  background: transparent;
+  grid-column: 1 / -1;
   isolation: isolate;
+  touch-action: pan-y pinch-zoom;
 }
-.study-viewport[data-detail="true"] {
-  cursor: grab;
-  touch-action: none;
+.study-viewport:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: -3px;
 }
-.study-viewport[data-dragging="true"] {
-  cursor: grabbing;
+@media (hover: hover) and (pointer: fine) {
+  .study-viewport[data-mode="pigment"] {
+    cursor: crosshair;
+  }
 }
 .study-image {
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  inset: 6% 12%;
+  width: 76%;
+  height: 88%;
   object-fit: contain;
   user-select: none;
+  z-index: 1;
 }
-.study-reticle {
-  display: none;
+.pigment-canvas {
   position: absolute;
-  inset: 50% auto auto 50%;
-  width: 22px;
-  height: 22px;
-  transform: translate(-50%, -50%);
+  inset: 0;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s;
+  z-index: 0;
 }
-.study-reticle::before,
-.study-reticle::after {
-  content: "";
+.study-viewport[data-mode="pigment"][data-loaded="true"] .pigment-canvas {
+  opacity: 1;
+}
+.study-material {
   position: absolute;
-  background: #fff;
-  box-shadow: 0 0 0 1px #292d29;
-}
-.study-reticle::before {
-  width: 22px;
-  height: 1px;
-  top: 10px;
-}
-.study-reticle::after {
-  width: 1px;
-  height: 22px;
-  left: 10px;
-}
-.study-viewport[data-detail="true"] .study-reticle {
-  display: block;
+  z-index: 2;
+  left: 22px;
+  bottom: 24px;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font: italic 22px var(--serif);
+  color: var(--red);
+  pointer-events: none;
 }
 .study-controls {
   border-top: 0;
   border-bottom: 1px solid var(--line);
+  max-width: 440px;
+  width: 100%;
+  grid-column: 2;
+  grid-row: 3;
+  align-self: start;
 }
 .study-controls label {
   font-size: 11px;
@@ -825,6 +856,10 @@ canvas[data-paused="true"] + .drawing-cue > span {
   accent-color: var(--red);
   cursor: pointer;
 }
+.study-controls input:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
 .study-controls output {
   width: 36px;
   flex-shrink: 0;
@@ -832,7 +867,9 @@ canvas[data-paused="true"] + .drawing-cue > span {
   font-variant-numeric: tabular-nums;
 }
 .study-caption {
-  padding-top: 20px;
+  padding-top: 12px;
+  grid-column: 1;
+  grid-row: 3;
 }
 .study-caption h3 {
   font: 36px/1.1 var(--serif);
@@ -844,6 +881,7 @@ canvas[data-paused="true"] + .drawing-cue > span {
   margin-top: 8px;
 }
 .study-status {
+  grid-column: 1 / -1;
   font-size: 12px;
   line-height: 1.6;
   margin-top: 6px;
@@ -853,19 +891,28 @@ canvas[data-paused="true"] + .drawing-cue > span {
 }
 .study-ready .folio-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   padding: 0;
   gap: 24px;
 }
 .study-ready .work-item {
   margin: 0;
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  column-gap: 16px;
+  align-items: start;
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
 }
 .study-ready .work-number {
   font-size: 22px;
   margin-bottom: 8px;
+  grid-column: 2;
 }
 .study-ready .artwork-button {
-  padding: 5px;
+  grid-row: 1 / 3;
+  grid-column: 1;
+  padding: 4px;
   border: 1px solid transparent;
   background: transparent;
 }
@@ -873,7 +920,7 @@ canvas[data-paused="true"] + .drawing-cue > span {
   border-color: var(--red);
 }
 .study-ready .artwork-button img {
-  height: 125px;
+  height: 105px;
   width: 100%;
   object-fit: contain;
 }
@@ -881,7 +928,8 @@ canvas[data-paused="true"] + .drawing-cue > span {
   display: none;
 }
 .study-ready .work-item figcaption {
-  margin-top: 8px;
+  grid-column: 2;
+  margin-top: 0;
 }
 .study-ready .work-item h3 {
   font-size: 22px;
@@ -895,10 +943,25 @@ canvas[data-paused="true"] + .drawing-cue > span {
   align-items: center;
   justify-content: space-between;
   gap: 40px;
-  background: #eee5e7;
+  background: #e6e9e4;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 490px;
+}
+.instagram-note::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 0 48%;
+  z-index: -1;
+  background:
+    linear-gradient(90deg, #e6e9e4, #e6e9e400 45%),
+    url("/images/CanvasArt-720.webp") center 45% / cover;
+  opacity: 0.64;
 }
 .instagram-copy {
   max-width: 510px;
+  position: relative;
 }
 .instagram-copy .eyebrow {
   color: var(--red);
@@ -917,9 +980,45 @@ canvas[data-paused="true"] + .drawing-cue > span {
   margin-bottom: 24px;
 }
 .instagram-qr {
+  --glass-angle: 130deg;
   display: block;
-  flex: 0 0 260px;
+  flex: 0 0 304px;
   max-width: 100%;
+  position: relative;
+  padding: 30px;
+  border: 1px solid #ffffffc9;
+  border-radius: 8px;
+  background: linear-gradient(
+    var(--glass-angle),
+    #ffffffc4,
+    #ffffff36 42%,
+    #ffffff8a
+  );
+  backdrop-filter: blur(18px) saturate(1.35);
+  -webkit-backdrop-filter: blur(18px) saturate(1.35);
+  box-shadow:
+    inset 0 2px 2px #fff,
+    inset 0 -2px 4px #ffffff90,
+    0 18px 50px #253e3729;
+  transition:
+    box-shadow 0.3s,
+    background-color 0.3s;
+}
+.instagram-qr::before {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border: 1px solid #ffffff65;
+  border-radius: 5px;
+  pointer-events: none;
+}
+.instagram-qr:hover,
+.instagram-qr:focus-visible {
+  background-color: #ffffff38;
+  box-shadow:
+    inset 0 2px 3px #fff,
+    inset 0 -2px 6px #ffffff,
+    0 22px 60px #253e3740;
 }
 .instagram-qr img {
   width: 100%;
@@ -931,8 +1030,26 @@ canvas[data-paused="true"] + .drawing-cue > span {
   align-items: center;
   margin-top: 12px;
   font-size: 13px;
+  font-weight: 500;
+  background: #ffffffc9;
+  padding: 8px 10px;
+}
+@supports not (backdrop-filter: blur(1px)) {
+  .instagram-qr {
+    background: #f5f6f1eb;
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .instagram-qr {
+    background: #f5f6f1;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 }
 @media (max-width: 760px) {
+  .art-study {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .study-ready .study-layout {
     grid-template-columns: minmax(0, 1fr);
     gap: 24px;
@@ -944,6 +1061,7 @@ canvas[data-paused="true"] + .drawing-cue > span {
   }
   .study-ready .work-item {
     grid-column: auto;
+    display: block;
   }
   .study-ready .work-item h3 {
     font:
@@ -955,19 +1073,31 @@ canvas[data-paused="true"] + .drawing-cue > span {
     display: none;
   }
   .study-ready .artwork-button img {
-    height: 110px;
+    height: 96px;
   }
   .study-toolbar,
   .study-controls {
     gap: 8px;
   }
   .study-modes button {
-    padding-inline: 12px;
+    padding-inline: 10px;
   }
   .study-viewport {
-    height: 410px;
-    max-height: 60svh;
-    min-height: 300px;
+    height: 440px;
+    min-height: 360px;
+    max-height: 68svh;
+  }
+  .study-material {
+    left: 8px;
+    bottom: 16px;
+    font-size: 16px;
+  }
+  .study-controls {
+    max-width: none;
+    grid-column: 1;
+  }
+  .study-caption {
+    grid-row: 4;
   }
   .study-caption h3 {
     font-size: 30px;
@@ -978,12 +1108,19 @@ canvas[data-paused="true"] + .drawing-cue > span {
     align-items: flex-start;
     gap: 28px;
   }
+  .instagram-note::before {
+    inset: 46% 0 0;
+    background:
+      linear-gradient(#e6e9e4, #e6e9e400 45%),
+      url("/images/CanvasArt-720.webp") center / cover;
+  }
   .instagram-copy h2 {
     font-size: 44px;
   }
   .instagram-qr {
     flex-basis: auto;
-    width: 240px;
+    width: 272px;
+    padding: 15px;
     align-self: center;
   }
 }
@@ -1013,6 +1150,7 @@ canvas[data-paused="true"] + .drawing-cue > span {
   align-items: center;
 }
 .dialog-image-wrap img {
+  touch-action: pan-y pinch-zoom;
   height: 65dvh;
   max-width: 100%;
   width: 100%;

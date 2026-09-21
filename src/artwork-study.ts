@@ -1,3 +1,6 @@
+import { mountPigmentField } from "./pigment-field.ts";
+import { mountTouchGestures } from "./touch-gestures.ts";
+
 type Artwork = {
   title: string;
   description: string;
@@ -13,84 +16,72 @@ export function mountArtworkStudy(
   const study = folio.querySelector<HTMLElement>(".art-study")!;
   const viewport = study.querySelector<HTMLElement>(".study-viewport")!;
   const image = study.querySelector<HTMLImageElement>(".study-image")!;
-  const zoom = study.querySelector<HTMLInputElement>("#study-zoom")!;
-  const output = study.querySelector<HTMLOutputElement>("#study-scale")!;
+  const release = study.querySelector<HTMLInputElement>("#study-release")!;
+  const output = study.querySelector<HTMLOutputElement>("#study-amount")!;
   const title = study.querySelector<HTMLElement>("#study-title")!;
   const status = study.querySelector<HTMLElement>("#study-status")!;
   const expand = study.querySelector<HTMLButtonElement>("#study-expand")!;
   const modes = study.querySelectorAll<HTMLButtonElement>("[data-study-mode]");
   const selectors = folio.querySelectorAll<HTMLAnchorElement>("[data-artwork]");
+  const field = mountPigmentField(
+    study.querySelector<HTMLCanvasElement>(".pigment-canvas")!,
+    image,
+  );
   let selected = 0;
-  let magnification = 1;
-  let horizontal = 50;
-  let vertical = 50;
-  let drag: { pointer: number; x: number; y: number } | null = null;
   let loadedSource = "";
+  let mode = "original";
+  let point = { x: 0.5, y: 0.5 };
 
-  function panLimits() {
-    const width = viewport.clientWidth;
-    const height = viewport.clientHeight;
-    const fit = Math.min(
-      width / (image.naturalWidth || 1),
-      height / (image.naturalHeight || 1),
-    );
-    return {
-      horizontal: Math.max(0, image.naturalWidth * fit * magnification - width),
-      vertical: Math.max(0, image.naturalHeight * fit * magnification - height),
-    };
-  }
-
-  function render() {
-    const limits = panLimits();
-    image.style.transform = `translate(${((50 - horizontal) * limits.horizontal) / 100}px, ${((50 - vertical) * limits.vertical) / 100}px) scale(${magnification})`;
-    zoom.value = String(magnification);
-    output.value = `${magnification.toFixed(1)}x`;
-    viewport.dataset.detail = String(magnification > 1);
+  function setMode(value: string) {
+    mode = field ? value : "original";
+    viewport.dataset.mode = mode;
+    release.disabled = mode !== "pigment";
     modes.forEach((button) => {
-      const active =
-        button.dataset.studyMode === (magnification > 1 ? "detail" : "whole");
-      button.setAttribute("aria-pressed", String(active));
+      button.setAttribute(
+        "aria-pressed",
+        String(button.dataset.studyMode === mode),
+      );
     });
+    field?.enable(mode === "pigment");
   }
 
   function reset() {
-    horizontal = 50;
-    vertical = 50;
-    magnification = 1;
-    render();
-  }
-
-  function move(horizontalDelta: number, verticalDelta: number) {
-    horizontal = Math.max(0, Math.min(100, horizontal + horizontalDelta));
-    vertical = Math.max(0, Math.min(100, vertical + verticalDelta));
-    render();
+    release.value = "35";
+    output.value = "35%";
+    field?.release(0.35);
+    setMode("original");
   }
 
   function selectArtwork(index: number) {
     selected = index;
+    point = { x: 0.5, y: 0.5 };
     const artwork = artworks[index];
     title.textContent = artwork.title;
     study.querySelector(".study-description")!.textContent =
       artwork.description;
     study.querySelector(".study-index")!.textContent =
       `${String(index + 1).padStart(2, "0")} / ${String(artworks.length).padStart(2, "0")}`;
+    study.querySelector(".study-material")!.textContent =
+      index === 0 ? "Pigment / canvas" : "Henna / skin";
     image.alt = artwork.alt;
     status.classList.add("sr-only");
     status.textContent = "Loading artwork";
     viewport.setAttribute("aria-busy", "true");
+    viewport.dataset.loaded = "false";
+    field?.clear();
     loadedSource = new URL(artwork.image, location.href).href;
     image.src = artwork.image;
     selectors.forEach((selector, selectorIndex) => {
       selector.setAttribute("aria-current", String(selectorIndex === index));
     });
-    reset();
   }
 
   image.addEventListener("load", () => {
     if (image.currentSrc !== loadedSource) return;
     viewport.setAttribute("aria-busy", "false");
+    viewport.dataset.loaded = "true";
     status.textContent = `${artworks[selected].title} selected`;
-    render();
+    field?.load();
   });
   image.addEventListener("error", () => {
     viewport.setAttribute("aria-busy", "false");
@@ -106,59 +97,71 @@ export function mountArtworkStudy(
   });
   modes.forEach((button) => {
     button.addEventListener("click", () => {
-      magnification = button.dataset.studyMode === "detail" ? 2.5 : 1;
-      render();
+      setMode(button.dataset.studyMode!);
     });
   });
-  zoom.addEventListener("input", () => {
-    magnification = Number(zoom.value);
-    render();
+  release.addEventListener("input", () => {
+    field?.release(Number(release.value) / 100);
+    output.value = `${release.value}%`;
   });
   study.querySelector("#study-reset")!.addEventListener("click", reset);
+  study.querySelector("#study-stir")!.addEventListener("click", () => {
+    setMode("pigment");
+    point = { x: 0.5, y: 0.5 };
+    field?.touch(0.5, 0.5);
+  });
   expand.addEventListener("click", () => onExpand(selected, expand));
+  function gesture(event: PointerEvent) {
+    if (mode !== "pigment") return;
+    const bounds = viewport.getBoundingClientRect();
+    point = {
+      x: (event.clientX - bounds.left) / bounds.width,
+      y: (event.clientY - bounds.top) / bounds.height,
+    };
+    field?.touch(point.x, point.y);
+  }
+  mountTouchGestures(viewport, {
+    onTap: gesture,
+    onSwipe: (direction) =>
+      selectArtwork((selected + direction + artworks.length) % artworks.length),
+  });
   viewport.addEventListener("pointerdown", (event) => {
-    if (magnification <= 1 || event.button !== 0) return;
-    drag = { pointer: event.pointerId, x: event.clientX, y: event.clientY };
-    viewport.setPointerCapture(event.pointerId);
-    viewport.dataset.dragging = "true";
+    if (event.pointerType !== "touch") gesture(event);
   });
   viewport.addEventListener("pointermove", (event) => {
-    if (!drag || drag.pointer !== event.pointerId) return;
-    const limits = panLimits();
-    move(
-      limits.horizontal
-        ? ((drag.x - event.clientX) * 100) / limits.horizontal
-        : 0,
-      limits.vertical ? ((drag.y - event.clientY) * 100) / limits.vertical : 0,
-    );
-    drag.x = event.clientX;
-    drag.y = event.clientY;
-  });
-  viewport.addEventListener("lostpointercapture", () => {
-    drag = null;
-    delete viewport.dataset.dragging;
+    if (
+      event.pointerType !== "touch" &&
+      (event.pointerType === "mouse" || event.buttons)
+    )
+      gesture(event);
   });
   viewport.addEventListener("keydown", (event) => {
-    if (event.key === "Home") {
+    if (event.key === "Home" || event.key === "Escape") {
       event.preventDefault();
       reset();
       return;
     }
-    if (magnification <= 1) return;
+    if (mode !== "pigment") return;
     const directions: Record<string, [number, number]> = {
-      ArrowLeft: [-5, 0],
-      ArrowRight: [5, 0],
-      ArrowUp: [0, -5],
-      ArrowDown: [0, 5],
+      ArrowLeft: [-0.1, 0],
+      ArrowRight: [0.1, 0],
+      ArrowUp: [0, -0.1],
+      ArrowDown: [0, 0.1],
+      Enter: [0, 0],
+      " ": [0, 0],
     };
     const direction = directions[event.key];
     if (!direction) return;
     event.preventDefault();
-    move(...direction);
+    point = {
+      x: Math.max(0, Math.min(1, point.x + direction[0])),
+      y: Math.max(0, Math.min(1, point.y + direction[1])),
+    };
+    field?.touch(point.x, point.y);
   });
 
   study.hidden = false;
   folio.classList.add("study-ready");
-  new ResizeObserver(render).observe(viewport);
+  setMode("pigment");
   selectArtwork(0);
 }

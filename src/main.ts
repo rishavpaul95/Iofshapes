@@ -27,6 +27,7 @@ import {
 import "./style.css";
 import { mountLivingLine } from "./living-line.ts";
 import { mountArtworkStudy } from "./artwork-study.ts";
+import { mountTouchGestures } from "./touch-gestures.ts";
 
 createIcons({
   icons: {
@@ -138,6 +139,9 @@ mountArtworkStudy(artworks, (index, trigger) => {
   dialog.showModal();
   document.body.classList.add("dialog-open");
 });
+mountTouchGestures(dialogImage, {
+  onSwipe: (direction) => showArtwork(artworkIndex + direction),
+});
 document
   .querySelector(".close-dialog")!
   .addEventListener("click", () => dialog.close());
@@ -179,3 +183,20 @@ dialog.addEventListener("close", () => {
 });
 
 document.querySelector("#year")!.textContent = String(new Date().getFullYear());
+
+const glass = document.querySelector<HTMLElement>(".instagram-qr")!;
+const glassMotion = matchMedia("(prefers-reduced-motion: reduce)");
+glass.addEventListener("pointermove", (event) => {
+  if (event.pointerType !== "mouse" || glassMotion.matches) return;
+  const bounds = glass.getBoundingClientRect();
+  glass.style.setProperty(
+    "--glass-angle",
+    `${100 + ((event.clientX - bounds.left) / bounds.width) * 70}deg`,
+  );
+});
+glass.addEventListener("pointerleave", () =>
+  glass.style.removeProperty("--glass-angle"),
+);
+glassMotion.addEventListener("change", () =>
+  glass.style.removeProperty("--glass-angle"),
+);

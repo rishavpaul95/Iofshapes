@@ -67,6 +67,10 @@ test("the custom domain produces root asset paths and production SEO metadata", 
   );
   assert.match(robots, /Sitemap: https:\/\/iofshapes\.in\/sitemap.xml/);
   assert.match(sitemap, /<loc>https:\/\/iofshapes\.in\/<\/loc>/);
+  assert.equal(robots, await readFile("public/robots.txt", "utf8"));
+  assert.equal(sitemap, await readFile("public/sitemap.xml", "utf8"));
+  assert.equal((sitemap.match(/<loc>/g) || []).length, 1);
+  assert.doesNotMatch(sitemap, /#|<lastmod>/);
   assert.match(html, /src="\/images\/instagram-qr\.png"/);
   assert.match(html, /href="\/favicon\.svg/);
   assert.match(html, /src="\/assets\//);
@@ -85,14 +89,16 @@ test("the custom domain produces root asset paths and production SEO metadata", 
   );
 });
 
-test("an unconfigured build never invents a production domain", async () => {
+test("a default production build uses the launched domain and public discovery files", async () => {
   const output = await buildWithDomain("");
   const html = output.find((asset) => asset.fileName === "index.html").source;
-  assert.doesNotMatch(html, /rel="canonical"/);
-  assert.equal(
-    output.some((asset) => asset.fileName === "sitemap.xml"),
-    false,
-  );
+  assert.match(html, /rel="canonical" href="https:\/\/iofshapes\.in\/"/);
+  for (const fileName of ["robots.txt", "sitemap.xml"]) {
+    assert.equal(
+      output.find((asset) => asset.fileName === fileName).source,
+      await readFile(`public/${fileName}`, "utf8"),
+    );
+  }
 });
 
 test("GitHub Pages subpaths prefix assets, gallery images and SEO metadata", async () => {

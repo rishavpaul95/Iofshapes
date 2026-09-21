@@ -1,8 +1,13 @@
+import { readFileSync } from "node:fs";
 import { defineConfig, loadEnv } from "vite";
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ command, mode }) => {
+  const productionUrl = "https://iofshapes.in/";
   const environment = loadEnv(mode, process.cwd(), "SITE_");
-  const configuredUrl = process.env.SITE_URL || environment.SITE_URL;
+  const configuredUrl =
+    process.env.SITE_URL ||
+    environment.SITE_URL ||
+    (command === "build" ? productionUrl : "");
   let siteUrl = "";
   let base = "/";
 
@@ -59,16 +64,18 @@ export default defineConfig(({ mode }) => {
           return tags;
         },
         generateBundle() {
-          this.emitFile({
-            type: "asset",
-            fileName: "robots.txt",
-            source: `User-agent: *\nAllow: /\n${siteUrl ? `\nSitemap: ${siteUrl}sitemap.xml\n` : ""}`,
-          });
-          if (siteUrl) {
+          for (const fileName of ["robots.txt", "sitemap.xml"]) {
+            const source = readFileSync(
+              new URL(`./public/${fileName}`, import.meta.url),
+              "utf8",
+            );
             this.emitFile({
               type: "asset",
-              fileName: "sitemap.xml",
-              source: `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${siteUrl}</loc></url></urlset>\n`,
+              fileName,
+              source: source.replaceAll(
+                productionUrl,
+                siteUrl || productionUrl,
+              ),
             });
           }
         },
