@@ -19,10 +19,7 @@ test("brand, original artwork and Instagram-only enquiries", async ({
   });
   expect(await enquiryLinks.count()).toBeGreaterThanOrEqual(3);
   for (const link of await enquiryLinks.all()) {
-    await expect(link).toHaveAttribute(
-      "href",
-      "https://www.instagram.com/iofshapes/",
-    );
+    await expect(link).toHaveAttribute("href", "https://ig.me/m/iofshapes");
     await expect(link).toHaveAttribute("rel", "noopener noreferrer");
   }
   for (const image of await page.locator("main img").all()) {
@@ -39,23 +36,157 @@ test("brand, original artwork and Instagram-only enquiries", async ({
   }
 });
 
-test("all three artwork images appear once in the folio", async ({ page }) => {
-  await expect(page.locator("main img")).toHaveCount(3);
+test("artwork index selects each original in the inspection table", async ({
+  page,
+}) => {
+  await expect(page.locator(".folio-grid img")).toHaveCount(3);
   await expect(page.locator(".work-item")).toHaveCount(3);
   const images = await page
-    .locator("main img")
+    .locator(".folio-grid img")
     .evaluateAll((elements) =>
       elements.map((element) => element.getAttribute("src")),
     );
   expect(new Set(images).size).toBe(images.length);
   await expect(page.locator(".origin img")).toHaveCount(0);
   await expect(page.locator(".invitation img")).toHaveCount(0);
-  await page
-    .getByRole("button", { name: "View Botanical mehendi among flowers" })
-    .click();
+  for (let index = 0; index < 3; index++) {
+    const selector = page.locator(`[data-artwork="${index}"]`);
+    await selector.click();
+    await expect(selector).toHaveAttribute("aria-current", "true");
+    await expect(page.locator(".study-viewport")).toHaveAttribute(
+      "aria-busy",
+      "false",
+    );
+    await expect(page.locator("#study-title")).toHaveText(
+      await page.locator(".work-item h3").nth(index).innerText(),
+    );
+    await expect(page.locator(".study-image")).toHaveAttribute(
+      "src",
+      (await selector.getAttribute("href"))!,
+    );
+    expect(
+      await page
+        .locator(".study-image")
+        .evaluate((element) => element.naturalWidth),
+    ).toBeGreaterThan(0);
+  }
+  await page.getByRole("button", { name: "Open artwork viewer" }).click();
   await expect(page.locator("#art-dialog-title")).toHaveText(
     "A little closer to nature",
   );
+});
+
+test("artwork detail supports zoom, keyboard, drag and reset", async ({
+  page,
+  isMobile,
+}) => {
+  const viewport = page.getByRole("group", { name: "Artwork inspection area" });
+  const image = page.locator(".study-image");
+  await page.getByRole("button", { name: "Detail", exact: true }).click();
+  await expect(viewport).toHaveAttribute("data-detail", "true");
+  await expect(page.locator("#study-scale")).toHaveText("2.5x");
+  await expect(image).toHaveCSS("transform", "matrix(2.5, 0, 0, 2.5, 0, 0)");
+  await viewport.focus();
+  const originalPosition = await image.evaluate(
+    (element) => element.style.transform,
+  );
+  await page.keyboard.press("ArrowDown");
+  expect(await image.evaluate((element) => element.style.transform)).not.toBe(
+    originalPosition,
+  );
+  const beforeDrag = await image.evaluate((element) => element.style.transform);
+  const bounds = (await viewport.boundingBox())!;
+  const start = {
+    x: bounds.x + bounds.width * 0.55,
+    y: bounds.y + bounds.height * 0.5,
+  };
+  if (isMobile) {
+    const session = await page.context().newCDPSession(page);
+    await session.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [start],
+    });
+    await session.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [{ x: start.x - 45, y: start.y - 30 }],
+    });
+    await session.send("Input.dispatchTouchEvent", {
+      type: "touchEnd",
+      touchPoints: [],
+    });
+    await session.detach();
+  } else {
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    await page.mouse.move(start.x - 45, start.y - 30, { steps: 4 });
+    await page.mouse.up();
+  }
+  expect(await image.evaluate((element) => element.style.transform)).not.toBe(
+    beforeDrag,
+  );
+  await page.getByRole("slider", { name: "Magnification" }).fill("3.2");
+  await expect(page.locator("#study-scale")).toHaveText("3.2x");
+  await page.getByRole("button", { name: "Reset artwork view" }).click();
+  await expect(viewport).toHaveAttribute("data-detail", "false");
+  await expect(image).toHaveCSS("transform", "matrix(1, 0, 0, 1, 0, 0)");
+  await page.getByRole("button", { name: "Detail", exact: true }).click();
+  await page.locator('[data-artwork="1"]').click();
+  await expect(page.locator("#study-scale")).toHaveText("1.0x");
+  await expect(
+    page.getByRole("button", { name: "Whole work" }),
+  ).toHaveAttribute("aria-pressed", "true");
+});
+
+test("embroidery metadata and Instagram follow QR remain discoverable", async ({
+  page,
+}) => {
+  await expect(page).toHaveTitle(/Embroidery in Kolkata/);
+  await expect(page.locator('meta[name="description"]')).toHaveAttribute(
+    "content",
+    /Haimanti Paul Nayak.*embroidery.*mehendi in Kolkata/i,
+  );
+  await expect(page.locator('meta[property="og:description"]')).toHaveAttribute(
+    "content",
+    /embroidery/i,
+  );
+  await expect(page.locator(".origin-copy")).toContainText("embroidery");
+  const schema = JSON.parse(
+    (await page.locator('script[type="application/ld+json"]').textContent())!,
+  );
+  expect(
+    schema["@graph"].find(
+      (entry: { "@type": string }) => entry["@type"] === "Person",
+    ).knowsAbout,
+  ).toContain("Hand embroidery");
+  await expect(
+    page.getByRole("link", { name: /Follow @iofshapes/ }),
+  ).toHaveAttribute("href", "https://www.instagram.com/iofshapes/");
+  await expect(page.locator(".instagram-qr")).toHaveAttribute(
+    "href",
+    "https://www.instagram.com/iofshapes/",
+  );
+  await page.locator(".instagram-qr").scrollIntoViewIfNeeded();
+  await expect(page.locator(".instagram-qr img")).toHaveJSProperty(
+    "naturalWidth",
+    660,
+  );
+});
+
+test("inspection image failure is announced and another selection recovers", async ({
+  page,
+}) => {
+  await page.route("**/images/mehendi-leaves-detail.jpg", (route) =>
+    route.abort(),
+  );
+  await page.locator('[data-artwork="2"]').click();
+  await expect(page.locator("#study-status")).toBeVisible();
+  await expect(page.locator("#study-status")).toContainText("could not load");
+  await page.locator('[data-artwork="0"]').click();
+  await expect(page.locator(".study-viewport")).toHaveAttribute(
+    "aria-busy",
+    "false",
+  );
+  await expect(page.locator("#study-status")).toHaveClass(/sr-only/);
 });
 
 test("drawing hand gives a nonverbal cue and retires after interaction", async ({
@@ -103,7 +234,12 @@ test("drawing hand gives a nonverbal cue and retires after interaction", async (
           context.getImageData(horizontal, vertical, 1, 1).data[3],
       ),
       checkerboardAlpha: context.getImageData(80, 10, 1, 1).data[3],
-      wristAlpha: [[70, 50], [80, 56], [88, 62], [100, 70]].map(
+      wristAlpha: [
+        [70, 50],
+        [80, 56],
+        [88, 62],
+        [100, 70],
+      ].map(
         ([horizontal, vertical]) =>
           context.getImageData(horizontal, vertical, 1, 1).data[3],
       ),
@@ -172,7 +308,7 @@ test("artwork viewer supports keyboard, navigation and focus restoration", async
   page,
 }) => {
   const trigger = page.getByRole("button", {
-    name: "View Geometric faces, original canvas painting",
+    name: "Open artwork viewer",
   });
   await trigger.click();
   await expect(page.getByRole("dialog")).toBeVisible();
@@ -240,7 +376,7 @@ test("accessible main page and artwork dialog", async ({ page }) => {
   expect(mainResults.violations).toEqual([]);
   await page
     .getByRole("button", {
-      name: "View Geometric faces, original canvas painting",
+      name: "Open artwork viewer",
     })
     .click();
   const dialogResults = await new AxeBuilder({ page })
@@ -270,6 +406,68 @@ test("reduced motion preserves content and disables drawing animation", async ({
     .click();
   await expect(page.locator("#living-line")).toHaveAttribute("data-marks", "1");
   await expect(page.locator(".origin-copy")).toHaveCSS("opacity", "1");
+});
+
+test("drawing-surface spans the whole hero without blocking its links", async ({
+  page,
+  isMobile,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.reload();
+  const canvas = page.locator("#living-line");
+  const hero = (await page.locator(".hero").boundingBox())!;
+  const bounds = (await canvas.boundingBox())!;
+  const heading = (await page.locator(".hero-heading").boundingBox())!;
+  const artist = (await page.locator("#artist").boundingBox())!;
+  expect(bounds.x).toBeCloseTo(hero.x, 0);
+  expect(bounds.y).toBeCloseTo(hero.y, 0);
+  expect(bounds.width).toBeCloseTo(hero.width, 0);
+  expect(bounds.height).toBeCloseTo(hero.height, 0);
+  expect(bounds.y + bounds.height).toBeCloseTo(artist.y, 0);
+  const positions = [
+    { x: bounds.width / 2, y: heading.y - bounds.y + heading.height / 2 },
+    { x: bounds.width * 0.75, y: bounds.height - 12 },
+  ];
+  for (const [index, position] of positions.entries()) {
+    const readPixels = () =>
+      canvas.evaluate((element, point) => {
+        const ratio = element.width / element.clientWidth;
+        const pixels = element
+          .getContext("2d")!
+          .getImageData(
+            Math.round(point.x * ratio) - 20,
+            Math.round(point.y * ratio) - 20,
+            40,
+            40,
+          ).data;
+        return Array.from(pixels).join(",");
+      }, position);
+    const before = await readPixels();
+    if (isMobile) await canvas.tap({ position });
+    else await canvas.click({ position });
+    await expect(canvas).toHaveAttribute("data-marks", String(index + 1));
+    expect(await readPixels()).not.toBe(before);
+  }
+  const booking = page.getByRole("link", {
+    name: "Book mehendi",
+    exact: false,
+  });
+  expect(
+    await booking.evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      return element.contains(
+        document.elementFromPoint(
+          bounds.left + bounds.width / 2,
+          bounds.top + bounds.height / 2,
+        ),
+      );
+    }),
+  ).toBeTruthy();
+  await page
+    .getByRole("link", { name: "Explore the work", exact: true })
+    .click();
+  await expect(page).toHaveURL(/#work$/);
+  await expect(canvas).toHaveAttribute("data-marks", "2");
 });
 
 test("living composition responds to touch, keyboard and replay", async ({
@@ -356,15 +554,25 @@ test("text, artwork and Instagram enquiries exist without JavaScript", async ({
     "Haimanti Paul Nayak",
   );
   await expect(page.locator(".origin-copy > p")).toHaveCount(2);
-  await expect(page.locator(".origin-copy > p").first()).toContainText("detailed linework");
-  await expect(page.locator(".origin-copy > p").nth(1)).toContainText("On canvas, those lines");
+  await expect(page.locator(".origin-copy > p").first()).toContainText(
+    "detailed linework",
+  );
+  await expect(page.locator(".origin-copy > p").nth(1)).toContainText(
+    "On canvas, those lines",
+  );
   await expect(page.locator(".origin-note")).toBeVisible();
   await expect(page.locator(".origin-note")).toContainText("since birth");
   await expect(page.locator(".invitation")).toContainText("Bridal mehendi");
-  await expect(page.locator("main img")).toHaveCount(3);
+  await expect(page.locator(".folio-grid img")).toHaveCount(3);
+  await expect(page.locator(".art-study")).not.toBeVisible();
+  await expect(page.locator('[data-artwork="0"]')).toHaveAttribute(
+    "href",
+    "/images/CanvasArt.jpg",
+  );
+  await expect(page.locator(".instagram-qr")).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Book mehendi", exact: false }),
-  ).toHaveAttribute("href", "https://www.instagram.com/iofshapes/");
+  ).toHaveAttribute("href", "https://ig.me/m/iofshapes");
   const schema = JSON.parse(
     (await page.locator('script[type="application/ld+json"]').textContent()) ||
       "{}",
@@ -450,6 +658,43 @@ test("responsive artwork, layout and screenshots", async ({
       return bounds.left >= 0 && bounds.right <= innerWidth;
     });
     expect(headingFits, `Brand must fit at ${width}px`).toBeTruthy();
+    const title = (await page.locator("#hero-title").boundingBox())!;
+    const attribution = (await page.locator(".attribution").boundingBox())!;
+    const location = (await page.locator(".hero-byline > span").boundingBox())!;
+    expect(
+      Math.abs(
+        attribution.x + attribution.width / 2 - (title.x + title.width / 2),
+      ),
+      `Attribution centered below the title at ${width}px`,
+    ).toBeLessThan(1);
+    const titleGap = attribution.y - (title.y + title.height);
+    expect(titleGap).toBeGreaterThanOrEqual(0);
+    expect(titleGap).toBeLessThanOrEqual(12);
+    if (width <= 760) {
+      expect(location.y).toBeGreaterThanOrEqual(
+        attribution.y + attribution.height,
+      );
+      expect(
+        Math.abs(location.x + location.width / 2 - (title.x + title.width / 2)),
+      ).toBeLessThan(1);
+    } else {
+      expect(location.x).toBeGreaterThan(attribution.x + attribution.width);
+    }
+    for (const selector of [".attribution", ".hero-byline > span"]) {
+      expect(
+        await page.locator(selector).evaluate((element) => {
+          const text = document.createRange();
+          text.selectNodeContents(element);
+          const bounds = text.getBoundingClientRect();
+          return (
+            bounds.left >= 0 &&
+            bounds.right <= innerWidth &&
+            element.scrollWidth <= element.clientWidth
+          );
+        }),
+        `${selector} fits at ${width}px`,
+      ).toBeTruthy();
+    }
     const continuation = await page
       .locator("#artist")
       .evaluate((element) => element.getBoundingClientRect().top);
@@ -468,15 +713,14 @@ test("responsive artwork, layout and screenshots", async ({
       }),
     );
     if (width <= 760) {
-      expect(work[1].top).toBeGreaterThan(work[0].bottom);
-      expect(Math.abs(work[1].top - work[2].top)).toBeLessThan(2);
-    } else {
       expect(work[1].left).toBeGreaterThan(work[0].right);
       expect(work[2].left).toBeGreaterThan(work[1].right);
-      expect(
-        Math.max(...work.map((item) => item.top)) -
-          Math.min(...work.map((item) => item.top)),
-      ).toBeLessThan(80);
+      expect(Math.abs(work[0].top - work[2].top)).toBeLessThan(2);
+    } else {
+      expect(work[1].top).toBeGreaterThan(work[0].bottom);
+      expect(work[2].top).toBeGreaterThan(work[1].bottom);
+      const study = (await page.locator(".art-study").boundingBox())!;
+      expect(work[0].left).toBeGreaterThan(study.x + study.width);
     }
     await page.screenshot({
       path: testInfo.outputPath(`viewport-${width}.png`),

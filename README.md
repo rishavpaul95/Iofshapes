@@ -1,6 +1,6 @@
 # Iofshapes
 
-A lightweight, mobile-first artist website for Iofshapes, by Haimanti Paul Nayak. Built with static HTML, TypeScript and Vite. All enquiries lead to the supplied Instagram profile; there is no contact form, booking backend, tracking or third-party embed.
+A lightweight, mobile-first artist website for Iofshapes, by Haimanti Paul Nayak. Built with static HTML, TypeScript and Vite. All enquiries lead to Instagram messaging, with a public profile fallback; there is no contact form, booking backend, tracking or third-party embed.
 
 ## Run locally
 
@@ -22,7 +22,7 @@ npm test
 npm run test:metadata
 ```
 
-Playwright covers desktop/mobile image loading, overflow from 320 to 1920 pixels, non-repeated artwork, the accessible artwork dialog, keyboard focus restoration, booking details, navigation, reduced motion, Instagram destinations, runtime errors and axe WCAG AA checks. Canvas checks verify nonblank pixels, touch/keyboard marks, replay, pause/resume and offscreen suspension. A no-JavaScript check verifies the artist, work, enquiries and structured data remain available. Responsive screenshots are generated in `test-results`. Automated checks do not replace testing with assistive technologies or a physical phone.
+Playwright covers desktop/mobile image loading, overflow from 320 to 1920 pixels, artwork selection, detail zoom, touch dragging, keyboard panning, image error recovery, the accessible artwork dialog, keyboard focus restoration, embroidery metadata, booking details, navigation, reduced motion, Instagram destinations, runtime errors and axe WCAG AA checks. Canvas checks verify nonblank pixels, touch/keyboard marks, replay, pause/resume and offscreen suspension. A no-JavaScript check verifies the artist, work, enquiries and structured data remain available. Responsive screenshots are generated in `test-results`. Automated checks do not replace testing with assistive technologies or a physical phone.
 
 ## Living composition
 
@@ -34,7 +34,15 @@ Rendering is capped at 30fps with device-pixel ratio capped at 2. Completed flor
 
 The rendering-budget test measures steady-state animation under Chromium's 4x CPU throttling. It records frame rate and script time in a JSON test attachment. This is a local diagnostic, not a substitute for field Core Web Vitals or testing on physical low-end phones.
 
-The folio presents all three original images once each in a compact three-column desktop spread. On phones, the painting sits above two paired botanical photographs. The second mehendi photograph is labelled as a detail from the same series, not a separate commission. All three images open in the artwork viewer. The artist passage describes her practice; the red-hand detail appears separately as a short note about the visual identity, not a claim about the origin of her art.
+## Artwork studies and Instagram
+
+The folio progressively enhances into an artwork inspection table, with an original-image stage and three-work index. Whole-work and detail modes, a 1x-4x slider, bounded mouse/touch panning, arrow-key movement, reset and a full-screen dialog reveal the real work without synthetic filters. Image transforms update only on interaction or resize; there is no continuous rendering loop. Without JavaScript, the three images remain visible with links to the originals. The second mehendi photograph is labelled as a detail from the same series, not a separate commission.
+
+Embroidery appears in the page title, search/social descriptions, visible copy and the artist's structured-data expertise. No embroidery photograph has been supplied, so the site does not invent a portfolio example. The red-hand detail remains a separate note about the visual identity, not a claim about the origin of her art.
+
+Profile and follow links open https://www.instagram.com/iofshapes/. Booking links open https://ig.me/m/iofshapes, with a profile fallback in the booking details. Instagram may require login or its app. A website or QR cannot automatically follow an account or send a message: visitors must confirm those actions themselves.
+
+The supplied `scripts/insta-QR.jpg` is cropped to its QR and quiet zone, without altering its modules, and published as `public/images/instagram-qr.png`. `npm run images` verifies its encoded Instagram destination using locally loaded ZXing. `npm run test:metadata` also decodes the generated QR at its 240px mobile display size. The decoder is a development dependency only; it is not shipped to browsers. If the source QR changes, review the crop and verification again.
 
 ## Artwork
 
@@ -50,9 +58,28 @@ The folio presents all three original images once each in a compact three-column
 
 ## Publish
 
-### GitHub Pages: rishavpaul95/Iofshapes
+### GitHub Pages: iofshapes.in
 
-The workflow in `.github/workflows/deploy.yml` deploys to **https://rishavpaul95.github.io/Iofshapes/**. It sets `SITE_URL`, generates images, checks deployment paths and SEO metadata, builds with Node.js 24, and publishes `dist`. No deployment token or secret is required.
+The workflow in `.github/workflows/deploy.yml` builds for **https://iofshapes.in/** and publishes through the `rishavpaul95/Iofshapes` repository. It sets `SITE_URL`, generates images, checks deployment paths and SEO metadata, builds with Node.js 24, and publishes `dist`. No deployment token or secret is required. The custom domain must also be configured in GitHub and Hostinger; changing the workflow alone does not connect it.
+
+#### Connect the domain
+
+1. In **GitHub account Settings > Pages > Add a domain**, enter `iofshapes.in`. In **Hostinger > Domains > iofshapes.in > DNS / Nameservers**, add the TXT record GitHub provides. Use `_github-pages-challenge-rishavpaul95` as the Name (without the `.iofshapes.in` suffix) and GitHub's verification code as the Value. Return to GitHub and verify. Keep the TXT record afterward.
+2. In **repository Settings > Pages**, select **GitHub Actions** as the source and save `iofshapes.in` under **Custom domain** before pointing the website DNS records to GitHub. This requires repository administrator access. A `CNAME` file is not required for this Actions workflow.
+3. With Hostinger nameservers in use, configure the records below in Hostinger. Replace conflicting parking/website A, AAAA, ALIAS or CNAME records for `@` and `www`, but keep email and verification records. Leave nameservers unchanged; do not reset the DNS zone, add wildcard records or use domain forwarding. The default TTL is fine.
+
+| Type  | Name  | Value                    |
+| ----- | ----- | ------------------------ |
+| A     | `@`   | `185.199.108.153`        |
+| A     | `@`   | `185.199.109.153`        |
+| A     | `@`   | `185.199.110.153`        |
+| A     | `@`   | `185.199.111.153`        |
+| CNAME | `www` | `rishavpaul95.github.io` |
+
+4. Upload the updated workflow to `main` and let the deployment complete. Wait for GitHub's DNS check and certificate provisioning, then select **Enforce HTTPS**. DNS and certificate changes can take up to 24 hours.
+5. Verify `https://iofshapes.in/`, the redirect from `https://www.iofshapes.in/`, and the HTTPS redirect from HTTP. Add the domain in Google Search Console and submit `https://iofshapes.in/sitemap.xml`.
+
+#### Upload the project
 
 1. Upload the project contents into the repository root, preserving the `src`, `public`, `scripts`, `tests` and `.github/workflows` folders. Include `package.json`, `package-lock.json`, `tsconfig.json` and `vite.config.ts`. Do not upload `node_modules`, `dist`, `test-results`, `playwright-report`, `.git` or private `.env` files; browser uploads do not apply your local `.gitignore` automatically.
 2. Under **Settings > Pages > Build and deployment**, choose **GitHub Actions**. A repository administrator may need to enable this.
@@ -60,25 +87,26 @@ The workflow in `.github/workflows/deploy.yml` deploys to **https://rishavpaul95
 4. Open **Actions > Deploy Iofshapes to GitHub Pages** and check the run. The workflow also supports **Run workflow**. Future browser uploads committed to `main` deploy automatically.
 5. Open the URL above after deployment succeeds. Check the gallery viewer, cursor, favicon and images. The deployment has only been tested locally until a GitHub Actions run succeeds.
 
-Browser uploads still require repository write access even though command-line Git is unnecessary. Do not upload only the workflow: the subpath support in `vite.config.ts` and `src/main.ts`, and the matching `tests/metadata.test.mjs`, are also required.
+Browser uploads still require repository write access even though command-line Git is unnecessary. For an initial upload, include the complete project source, not just the workflow. When migrating an already deployed, up-to-date project, replace the workflow and upload the changed supporting files.
 
-### Other hosts or a custom domain
+### Other deployment targets
 
 1. Set `SITE_URL` to the final HTTPS site URL, optionally including a deployment path, in the hosting build environment or a local `.env` file. `.env.example` documents the key. Credentials, query strings, fragments and non-plain paths are rejected. No domain is invented by default.
 2. Run `npm run build` and deploy `dist` at that URL. The Vite base path is derived from `SITE_URL`, so HTML/CSS assets and gallery images use the same deployment path. With no `SITE_URL`, the site builds for `/`. For a custom domain on Pages, also change the workflow's `SITE_URL` and configure the domain in GitHub Pages settings.
 3. When `SITE_URL` is set, the build adds the canonical URL, absolute Open Graph image URL, `og:url` and a sitemap. `robots.txt` is always generated.
-4. Check the live Instagram link on iOS and Android. Instagram may ask visitors to sign in; enquiry buttons deliberately use the supplied public profile rather than an unreliable direct-message deep link.
+4. Check the live Instagram profile and messaging links on iOS and Android, both logged in and logged out. App availability and account settings can affect messaging links; the public profile remains available as a fallback. Test the QR with a physical phone camera.
 5. Confirm service coverage and copy with Haimanti, review social previews, and submit the sitemap to Search Console.
 
-On project Pages, `robots.txt` is published under `/Iofshapes/`, not the domain root where crawlers look for it. Submit `https://rishavpaul95.github.io/Iofshapes/sitemap.xml` directly to Search Console; controlling the root `robots.txt` requires the account site or a custom domain.
+On the custom domain, `robots.txt` is published at `https://iofshapes.in/robots.txt`, the root location crawlers use. If reverting to the default project URL, restore `SITE_URL=https://rishavpaul95.github.io/Iofshapes/` in the workflow and remove the repository custom domain only after safely updating DNS. The project-path robots file would not govern domain-root crawling; submit that deployment's sitemap directly to Search Console. Subpath support remains covered by regression tests.
 
-All text and JSON-LD are in the initial HTML for crawlers. Fonts are locally hosted. The opening uses one locally hosted SVG hand asset for its cursor and tap cue, with a PNG cursor fallback and no video or large hero image; original artwork below it uses responsive, lazy-loaded WebP images. Full-resolution images are loaded into the viewer only when opened. The animation does not own or gate any SEO content.
+All text and JSON-LD are in the initial HTML for crawlers. Fonts are locally hosted. The opening uses one locally hosted SVG hand asset for its cursor and tap cue, with a PNG cursor fallback and no video or large hero image; original artwork below it uses responsive, lazy-loaded WebP images. The inspection stage lazy-loads its initial full-resolution artwork and loads subsequent originals when selected; the dialog reuses those URLs. The animation does not own or gate any SEO content.
 
 ## Editing
 
 - Content, navigation, artwork and structured data: `index.html`
 - Visual identity and responsive layouts: `src/style.css`
 - Icons and interactions: `src/main.ts`
+- Artwork inspection controls: `src/artwork-study.ts`
 - Living Canvas composition and rendering lifecycle: `src/living-line.ts`
 - Deployment metadata: `vite.config.ts`
 - Source formatting: `npm run format`

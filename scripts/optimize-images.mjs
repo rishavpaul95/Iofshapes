@@ -1,6 +1,46 @@
 import sharp from "sharp";
+import { prepareZXingModule, readBarcodes } from "zxing-wasm/reader";
 import { resolve } from "node:path";
-import { stat, writeFile } from "node:fs/promises";
+import { readFile, stat, writeFile } from "node:fs/promises";
+
+prepareZXingModule({
+  overrides: {
+    wasmBinary: new Uint8Array(
+      await readFile(
+        resolve(
+          "node_modules",
+          "zxing-wasm",
+          "dist",
+          "reader",
+          "zxing_reader.wasm",
+        ),
+      ),
+    ).buffer,
+  },
+});
+const qrSource = await sharp(resolve("scripts", "insta-QR.jpg"))
+  .extract({ left: 210, top: 407, width: 660, height: 660 })
+  .png()
+  .toBuffer();
+const qrCodes = await readBarcodes(qrSource, {
+  formats: ["QRCode"],
+  tryHarder: true,
+});
+const qrDestination = qrCodes[0] ? new URL(qrCodes[0].text) : null;
+if (
+  !qrDestination ||
+  qrDestination.protocol !== "https:" ||
+  !["instagram.com", "www.instagram.com"].includes(qrDestination.hostname) ||
+  !/^\/iofshapes\/?$/i.test(qrDestination.pathname)
+) {
+  throw new Error(
+    `The supplied QR must decode to the Iofshapes Instagram profile; decoded: ${qrDestination?.href ?? "no readable QR found"}`,
+  );
+}
+await writeFile(resolve("public", "images", "instagram-qr.png"), qrSource);
+console.log(
+  `Instagram QR verified: ${qrDestination.origin}${qrDestination.pathname}`,
+);
 
 const images = [
   { name: "CanvasArt", widths: [360, 720] },
@@ -38,7 +78,8 @@ for (let offset = 0; offset < handPixels.length; offset += 4) {
     0,
     Math.min(1, (horizontal * 0.8 + vertical * 0.2 - 0.64) / 0.2),
   );
-  const wristOpacity = 1 - wristProgress * wristProgress * (3 - 2 * wristProgress);
+  const wristOpacity =
+    1 - wristProgress * wristProgress * (3 - 2 * wristProgress);
   handPixels[offset + 3] = Math.round(255 * opacity * wristOpacity);
 }
 

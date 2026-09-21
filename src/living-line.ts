@@ -4,6 +4,9 @@ export function mountLivingLine(canvas: HTMLCanvasElement) {
   const context = canvas.getContext("2d");
   if (!context) return;
   const drawing = context;
+  const surface = canvas
+    .closest(".hero")!
+    .querySelector<HTMLElement>(".living-surface")!;
   const motion = matchMedia("(prefers-reduced-motion: reduce)");
   const pause = document.querySelector<HTMLButtonElement>("#pause-line")!;
   const replay = document.querySelector<HTMLButtonElement>("#replay-line")!;
@@ -13,6 +16,8 @@ export function mountLivingLine(canvas: HTMLCanvasElement) {
   let completedFrame: HTMLCanvasElement | null = null;
   let width = 1;
   let height = 1;
+  let compositionTop = 0;
+  let compositionHeight = 1;
   let elapsed = motion.matches ? 7000 : 0;
   let lastFrame = 0;
   let frame = 0;
@@ -96,10 +101,11 @@ export function mountLivingLine(canvas: HTMLCanvasElement) {
     drawing.clearRect(0, 0, width, height);
     const compact = width < 761;
     const scale = compact
-      ? Math.min(width / 600, height / 650)
-      : Math.min(width / 1180, height / 600);
+      ? Math.min(width / 600, compositionHeight / 650)
+      : Math.min(width / 1180, compositionHeight / 600);
     const centreX = compact ? width * 0.52 : width * 0.65;
-    const centreY = compact ? height * 0.48 : height * 0.49;
+    const centreY =
+      compositionTop + compositionHeight * (compact ? 0.48 : 0.49);
     const growth = Math.min(1, elapsed / 4400);
     const breath = paused ? 0 : Math.sin(elapsed / 3200) * 0.016;
     if (growth === 1 && completedFrame) {
@@ -338,13 +344,22 @@ export function mountLivingLine(canvas: HTMLCanvasElement) {
     const bounds = canvas.getBoundingClientRect();
     width = bounds.width;
     height = bounds.height;
+    const surfaceBounds = surface.getBoundingClientRect();
+    const inset =
+      parseFloat(
+        getComputedStyle(surface).getPropertyValue("--drawing-inset-bottom"),
+      ) || 0;
+    compositionTop = surfaceBounds.top - bounds.top;
+    compositionHeight = Math.max(1, surfaceBounds.height - inset);
     const ratio = Math.min(devicePixelRatio || 1, 2);
     canvas.width = Math.round(width * ratio);
     canvas.height = Math.round(height * ratio);
     drawing.setTransform(ratio, 0, 0, ratio, 0, 0);
     render();
   }
-  new ResizeObserver(resize).observe(canvas);
+  const observer = new ResizeObserver(resize);
+  observer.observe(canvas);
+  observer.observe(surface);
   new IntersectionObserver(
     ([entry]) => {
       visible = entry.isIntersecting;

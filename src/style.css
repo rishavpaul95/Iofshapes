@@ -184,6 +184,7 @@ canvas:focus-visible {
 .hero {
   position: relative;
   overflow: hidden;
+  isolation: isolate;
 }
 .hero-heading {
   padding: 17px var(--gutter) 0;
@@ -204,25 +205,33 @@ canvas:focus-visible {
   color: var(--red);
 }
 .hero-byline {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
-  margin-top: 6px;
+  gap: 16px;
+  margin-top: 4px;
 }
 .attribution {
-  font: italic 22px var(--serif);
+  grid-column: 2;
+  font: italic 22px/1.2 var(--serif);
+  text-align: center;
 }
 .hero-byline > span {
+  justify-self: end;
   font-size: 9px;
+  text-align: right;
 }
 .living-surface {
+  --drawing-inset-bottom: 0px;
   height: min(53svh, 570px);
   min-height: 330px;
   position: relative;
+  pointer-events: none;
 }
-.living-surface canvas {
+.hero > canvas {
   position: absolute;
   inset: 0;
+  z-index: -1;
   width: 100%;
   height: 100%;
   touch-action: pan-y;
@@ -322,6 +331,7 @@ canvas[data-paused="true"] + .drawing-cue > span {
   font-size: 8px;
 }
 .composition-controls {
+  pointer-events: auto;
   position: absolute;
   right: var(--gutter);
   bottom: 14px;
@@ -346,12 +356,17 @@ canvas[data-paused="true"] + .drawing-cue > span {
   display: none;
 }
 .hero-bottom {
+  position: relative;
+  pointer-events: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 28px;
   margin: 0 var(--gutter);
   padding: 5px 0 28px;
+}
+.hero-bottom a {
+  pointer-events: auto;
 }
 .hero-bottom > p {
   font-size: 13px;
@@ -699,6 +714,279 @@ canvas[data-paused="true"] + .drawing-cue > span {
 .dialog-open {
   overflow: hidden;
 }
+.study-ready .study-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: 36px;
+  margin-top: 36px;
+  align-items: start;
+}
+.art-study {
+  min-width: 0;
+}
+.art-study[hidden] {
+  display: none;
+}
+.study-toolbar,
+.study-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 64px;
+  border-top: 1px solid var(--line);
+}
+.study-toolbar {
+  justify-content: space-between;
+}
+.study-modes {
+  display: flex;
+  gap: 4px;
+}
+.study-modes button {
+  min-height: 44px;
+  padding: 0 16px;
+  font-size: 12px;
+  background: transparent;
+  border-bottom: 2px solid transparent;
+}
+.study-modes button[aria-pressed="true"] {
+  border-color: var(--red);
+  color: var(--red);
+}
+.study-index {
+  margin-left: auto;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.study-viewport {
+  position: relative;
+  overflow: hidden;
+  height: clamp(340px, 55svh, 650px);
+  background-color: #e7ebe8;
+  background-image:
+    linear-gradient(#49594d12 1px, transparent 1px),
+    linear-gradient(90deg, #49594d12 1px, transparent 1px);
+  background-size: 32px 32px;
+  isolation: isolate;
+}
+.study-viewport[data-detail="true"] {
+  cursor: grab;
+  touch-action: none;
+}
+.study-viewport[data-dragging="true"] {
+  cursor: grabbing;
+}
+.study-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+}
+.study-reticle {
+  display: none;
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 22px;
+  height: 22px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.study-reticle::before,
+.study-reticle::after {
+  content: "";
+  position: absolute;
+  background: #fff;
+  box-shadow: 0 0 0 1px #292d29;
+}
+.study-reticle::before {
+  width: 22px;
+  height: 1px;
+  top: 10px;
+}
+.study-reticle::after {
+  width: 1px;
+  height: 22px;
+  left: 10px;
+}
+.study-viewport[data-detail="true"] .study-reticle {
+  display: block;
+}
+.study-controls {
+  border-top: 0;
+  border-bottom: 1px solid var(--line);
+}
+.study-controls label {
+  font-size: 11px;
+}
+.study-controls input {
+  flex: 1;
+  min-width: 40px;
+  height: 44px;
+  accent-color: var(--red);
+  cursor: pointer;
+}
+.study-controls output {
+  width: 36px;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.study-caption {
+  padding-top: 20px;
+}
+.study-caption h3 {
+  font: 36px/1.1 var(--serif);
+}
+.study-caption p {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+  margin-top: 8px;
+}
+.study-status {
+  font-size: 12px;
+  line-height: 1.6;
+  margin-top: 6px;
+}
+.study-status:not(:empty) {
+  color: var(--muted);
+}
+.study-ready .folio-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  padding: 0;
+  gap: 24px;
+}
+.study-ready .work-item {
+  margin: 0;
+}
+.study-ready .work-number {
+  font-size: 22px;
+  margin-bottom: 8px;
+}
+.study-ready .artwork-button {
+  padding: 5px;
+  border: 1px solid transparent;
+  background: transparent;
+}
+.study-ready .artwork-button[aria-current="true"] {
+  border-color: var(--red);
+}
+.study-ready .artwork-button img {
+  height: 125px;
+  width: 100%;
+  object-fit: contain;
+}
+.study-ready .image-open {
+  display: none;
+}
+.study-ready .work-item figcaption {
+  margin-top: 8px;
+}
+.study-ready .work-item h3 {
+  font-size: 22px;
+}
+.study-ready .work-item figcaption > span {
+  font-size: 10px;
+}
+.instagram-note {
+  padding: 64px var(--gutter);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 40px;
+  background: #eee5e7;
+}
+.instagram-copy {
+  max-width: 510px;
+}
+.instagram-copy .eyebrow {
+  color: var(--red);
+}
+.instagram-copy h2 {
+  font: 60px/1.05 var(--serif);
+  margin: 24px 0;
+}
+.instagram-copy h2 em {
+  font-weight: 400;
+}
+.instagram-copy > p:not(.eyebrow) {
+  font-size: 14px;
+  line-height: 1.8;
+  max-width: 340px;
+  margin-bottom: 24px;
+}
+.instagram-qr {
+  display: block;
+  flex: 0 0 260px;
+  max-width: 100%;
+}
+.instagram-qr img {
+  width: 100%;
+  height: auto;
+}
+.instagram-qr > span {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+  font-size: 13px;
+}
+@media (max-width: 760px) {
+  .study-ready .study-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+    margin-top: 24px;
+  }
+  .study-ready .folio-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .study-ready .work-item {
+    grid-column: auto;
+  }
+  .study-ready .work-item h3 {
+    font:
+      13px/1.4 "DM Sans",
+      sans-serif;
+  }
+  .study-ready .work-number > span,
+  .study-ready .work-item figcaption > span {
+    display: none;
+  }
+  .study-ready .artwork-button img {
+    height: 110px;
+  }
+  .study-toolbar,
+  .study-controls {
+    gap: 8px;
+  }
+  .study-modes button {
+    padding-inline: 12px;
+  }
+  .study-viewport {
+    height: 410px;
+    max-height: 60svh;
+    min-height: 300px;
+  }
+  .study-caption h3 {
+    font-size: 30px;
+  }
+  .instagram-note {
+    padding-block: 44px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 28px;
+  }
+  .instagram-copy h2 {
+    font-size: 44px;
+  }
+  .instagram-qr {
+    flex-basis: auto;
+    width: 240px;
+    align-self: center;
+  }
+}
 .art-dialog {
   border: 0;
   background: var(--paper);
@@ -937,16 +1225,19 @@ canvas[data-paused="true"] + .drawing-cue > span {
     font-size: 91px;
   }
   .hero-byline {
-    margin-top: 12px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+    margin-top: 6px;
   }
   .attribution {
+    grid-column: 1;
     font-size: 19px;
   }
   .hero-byline > span {
-    font-size: 7px;
-    max-width: 100px;
-    text-align: right;
-    line-height: 1.6;
+    justify-self: center;
+    font-size: 8px;
+    text-align: center;
+    line-height: 1.4;
   }
   .living-surface {
     height: 440px;
@@ -1124,15 +1415,8 @@ canvas[data-paused="true"] + .drawing-cue > span {
   .hero-heading {
     padding-top: 18px;
   }
-  .hero-byline {
-    margin-top: 10px;
-  }
   .attribution {
     font-size: 18px;
-  }
-  .hero-byline > span {
-    font-size: 6px;
-    max-width: 90px;
   }
   .living-surface {
     height: 430px;
@@ -1394,9 +1678,6 @@ canvas[data-paused="true"] + .drawing-cue > span {
   .attribution {
     font-size: 17px;
   }
-  .hero-byline > span {
-    font-size: 6px;
-  }
   .living-surface {
     height: 400px;
   }
@@ -1483,8 +1764,8 @@ canvas[data-paused="true"] + .drawing-cue > span {
   }
 }
 @media (max-width: 760px) {
-  .living-surface canvas {
-    height: calc(100% - 125px);
+  .living-surface {
+    --drawing-inset-bottom: 125px;
   }
   .composition-controls {
     background: var(--paper);

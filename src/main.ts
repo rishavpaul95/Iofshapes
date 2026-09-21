@@ -21,9 +21,12 @@ import {
   Play,
   Plus,
   Instagram,
+  Scan,
+  MessageCircle,
 } from "lucide";
 import "./style.css";
 import { mountLivingLine } from "./living-line.ts";
+import { mountArtworkStudy } from "./artwork-study.ts";
 
 createIcons({
   icons: {
@@ -43,6 +46,8 @@ createIcons({
     Play,
     Plus,
     Instagram,
+    Scan,
+    MessageCircle,
   },
 });
 
@@ -127,16 +132,12 @@ function showArtwork(index: number) {
     artwork.source;
 }
 
-document
-  .querySelectorAll<HTMLButtonElement>("[data-artwork]")
-  .forEach((button) =>
-    button.addEventListener("click", () => {
-      artworkTrigger = button;
-      showArtwork(Number(button.dataset.artwork));
-      dialog.showModal();
-      document.body.classList.add("dialog-open");
-    }),
-  );
+mountArtworkStudy(artworks, (index, trigger) => {
+  artworkTrigger = trigger;
+  showArtwork(index);
+  dialog.showModal();
+  document.body.classList.add("dialog-open");
+});
 document
   .querySelector(".close-dialog")!
   .addEventListener("click", () => dialog.close());
