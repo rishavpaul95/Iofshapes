@@ -480,11 +480,31 @@ test("branded favicon and touch icon load at their declared sizes", async ({
       expect(source).toBeTruthy();
       const response = await request.get(source!);
       expect(response.ok()).toBeTruthy();
-      if (new URL(source!, page.url()).pathname.endsWith(".png")) {
+      const pathname = new URL(source!, page.url()).pathname;
+      if (pathname.endsWith(".png")) {
         const bytes = await response.body();
         const size = Number((await icon.getAttribute("sizes"))!.split("x")[0]);
         expect(bytes.readUInt32BE(16)).toBe(size);
         expect(bytes.readUInt32BE(20)).toBe(size);
+      } else if (pathname.endsWith(".ico")) {
+        const bytes = await response.body();
+        expect(bytes.readUInt16LE(0)).toBe(0);
+        expect(bytes.readUInt16LE(2)).toBe(1);
+        const frames = bytes.readUInt16LE(4);
+        const sizes = [];
+        for (let frame = 0; frame < frames; frame++) {
+          const entry = 6 + frame * 16;
+          const declared = bytes.readUInt8(entry);
+          const length = bytes.readUInt32LE(entry + 8);
+          const offset = bytes.readUInt32LE(entry + 12);
+          expect(offset + length).toBeLessThanOrEqual(bytes.length);
+          const image = bytes.subarray(offset, offset + length);
+          expect(image.subarray(1, 4).toString()).toBe("PNG");
+          expect(image.readUInt32BE(16)).toBe(declared);
+          expect(image.readUInt32BE(20)).toBe(declared);
+          sizes.push(declared);
+        }
+        expect(sizes).toEqual([16, 32, 48]);
       } else {
         const markup = await response.text();
         expect(markup).toContain("#a93832");
@@ -497,6 +517,19 @@ test("branded favicon and touch icon load at their declared sizes", async ({
       }
     }
   }
+  const icons = await page
+    .locator('link[rel="icon"]')
+    .evaluateAll((links) =>
+      links.map((link) => (link as HTMLLinkElement).href),
+    );
+  // Google falls back to /favicon.ico and ignores raster icons that are not a multiple of 48px.
+  expect(
+    icons.some((href) => new URL(href).pathname.endsWith("/favicon.ico")),
+  ).toBe(true);
+  const raster = await page
+    .locator('link[rel="icon"][type="image/png"]')
+    .getAttribute("sizes");
+  expect(Number(raster!.split("x")[0]) % 48).toBe(0);
 });
 
 test("artwork viewer supports keyboard, navigation and focus restoration", async ({

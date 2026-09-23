@@ -106,7 +106,7 @@ console.log(
 );
 
 for (const [size, filename] of [
-  [32, "favicon-32.png"],
+  [96, "favicon-96.png"],
   [180, "apple-touch-icon.png"],
 ]) {
   await sharp(resolve("public", "favicon.svg"))
@@ -114,6 +114,44 @@ for (const [size, filename] of [
     .png()
     .toFile(resolve("public", filename));
 }
+
+// Google falls back to /favicon.ico, so ship one rather than letting that request 404.
+const icoFrames = [];
+for (const size of [16, 32, 48]) {
+  icoFrames.push({
+    size,
+    data: await sharp(resolve("public", "favicon.svg"))
+      .resize(size, size)
+      .png()
+      .toBuffer(),
+  });
+}
+const icoHeader = Buffer.alloc(6);
+icoHeader.writeUInt16LE(1, 2);
+icoHeader.writeUInt16LE(icoFrames.length, 4);
+let icoOffset = icoHeader.length + icoFrames.length * 16;
+const icoDirectory = icoFrames.map((frame) => {
+  const entry = Buffer.alloc(16);
+  entry.writeUInt8(frame.size, 0);
+  entry.writeUInt8(frame.size, 1);
+  entry.writeUInt16LE(1, 4);
+  entry.writeUInt16LE(32, 6);
+  entry.writeUInt32LE(frame.data.length, 8);
+  entry.writeUInt32LE(icoOffset, 12);
+  icoOffset += frame.data.length;
+  return entry;
+});
+await writeFile(
+  resolve("public", "favicon.ico"),
+  Buffer.concat([
+    icoHeader,
+    ...icoDirectory,
+    ...icoFrames.map((frame) => frame.data),
+  ]),
+);
+console.log(
+  `Icons: favicon.ico ${icoFrames.map((frame) => frame.size).join("/")}px, favicon-96.png, apple-touch-icon.png`,
+);
 
 for (const image of images) {
   const original = resolve("public", "images", `${image.name}.jpg`);

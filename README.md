@@ -62,7 +62,7 @@ The supplied `scripts/insta-QR.jpg` is cropped to its QR and quiet zone, without
 - `scripts/creation-of-adam.jpg`: earlier public-domain reference from [Wikimedia Commons](<https://commons.wikimedia.org/wiki/File:Michelangelo_-_Creation_of_Adam_(cropped).jpg>), no longer used by the image pipeline or deployed site.
 - The original JPEGs are retained. `npm run images` generates smaller WebP variants with Sharp; rerun after replacing the source images. Keep artwork references in `index.html` and the viewer data in `src/main.ts` in sync.
 - The images are served locally, not from expiring Instagram CDN links. Confirm the artist's publication permissions before launching.
-- The SVG favicon uses the same red six-spoke Lucide asterisk as the header. `npm run images` also generates its 32px PNG fallback and 180px Apple touch icon.
+- The SVG favicon uses the same red six-spoke Lucide asterisk as the header. `npm run images` also generates a root `favicon.ico` containing 16, 32 and 48px frames, a 96px PNG and the 180px Apple touch icon. Google falls back to `/favicon.ico` and ignores raster icons that are not a multiple of 48px, so keep both when changing the icon. Google refreshes search-result favicons on its own recrawl schedule.
 
 ## Publish
 
